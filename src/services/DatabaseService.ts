@@ -11,6 +11,7 @@ import {
   UpdateKnowledgeSourceRequest 
 } from '../models/KnowledgeSource';
 import { CreateRecipientRequest, UpdateRecipientRequest } from '../models/Recipient';
+import { CreateNewsletterRequest, UpdateNewsletterRequest } from '../models/Newsletter';
 
 export class DatabaseService {
   // Channel operations
@@ -566,6 +567,99 @@ export class DatabaseService {
 
   static async deleteRecipient(id: string): Promise<boolean> {
     const result = await pool.query('DELETE FROM recipients WHERE id = $1', [id]);
+    return result.rowCount > 0;
+  }
+
+  // Newsletter operations
+  static async createNewsletter(newsletterData: CreateNewsletterRequest): Promise<any> {
+    const query = `
+      INSERT INTO newsletters (subject, content, status, publish_date, channel_id, header_image_url, preview_text, recipient_count)
+      VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+      RETURNING *
+    `;
+    const values = [
+      newsletterData.subject,
+      newsletterData.content,
+      newsletterData.status || 'draft',
+      newsletterData.publish_date,
+      newsletterData.channel_id,
+      newsletterData.header_image_url,
+      newsletterData.preview_text,
+      newsletterData.recipient_count
+    ];
+    
+    const result = await pool.query(query, values);
+    return result.rows[0];
+  }
+
+  static async getNewsletters(): Promise<any[]> {
+    const result = await pool.query('SELECT * FROM newsletters ORDER BY created_at DESC');
+    return result.rows;
+  }
+
+  static async getNewsletterById(id: string): Promise<any | null> {
+    const result = await pool.query('SELECT * FROM newsletters WHERE id = $1', [id]);
+    return result.rows[0] || null;
+  }
+
+  static async updateNewsletter(newsletterData: UpdateNewsletterRequest): Promise<any | null> {
+    const setParts: string[] = [];
+    const values: any[] = [];
+    let paramCount = 1;
+
+    if (newsletterData.subject !== undefined) {
+      setParts.push(`subject = $${paramCount++}`);
+      values.push(newsletterData.subject);
+    }
+    if (newsletterData.content !== undefined) {
+      setParts.push(`content = $${paramCount++}`);
+      values.push(newsletterData.content);
+    }
+    if (newsletterData.status !== undefined) {
+      setParts.push(`status = $${paramCount++}`);
+      values.push(newsletterData.status);
+    }
+    if (newsletterData.publish_date !== undefined) {
+      setParts.push(`publish_date = $${paramCount++}`);
+      values.push(newsletterData.publish_date);
+    }
+    if (newsletterData.channel_id !== undefined) {
+      setParts.push(`channel_id = $${paramCount++}`);
+      values.push(newsletterData.channel_id);
+    }
+    if (newsletterData.header_image_url !== undefined) {
+      setParts.push(`header_image_url = $${paramCount++}`);
+      values.push(newsletterData.header_image_url);
+    }
+    if (newsletterData.preview_text !== undefined) {
+      setParts.push(`preview_text = $${paramCount++}`);
+      values.push(newsletterData.preview_text);
+    }
+    if (newsletterData.sent_date !== undefined) {
+      setParts.push(`sent_date = $${paramCount++}`);
+      values.push(newsletterData.sent_date);
+    }
+    if (newsletterData.recipient_count !== undefined) {
+      setParts.push(`recipient_count = $${paramCount++}`);
+      values.push(newsletterData.recipient_count);
+    }
+
+    setParts.push(`updated_at = NOW()`);
+    values.push(newsletterData.id);
+
+    const query = `
+      UPDATE newsletters 
+      SET ${setParts.join(', ')}
+      WHERE id = $${paramCount}
+      RETURNING *
+    `;
+
+    const result = await pool.query(query, values);
+    return result.rows[0] || null;
+  }
+
+  static async deleteNewsletter(id: string): Promise<boolean> {
+    const result = await pool.query('DELETE FROM newsletters WHERE id = $1', [id]);
     return result.rowCount > 0;
   }
 }

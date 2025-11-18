@@ -11,8 +11,9 @@ This document outlines the database schema for the Content AI Manager applicatio
 6.  [Knowledge Sources Table](#knowledge-sources-table)
 7.  [Knowledge Chunks Table](#knowledge-chunks-table)
 8.  [Recipients Table](#recipients-table)
-9.  [Knowledge Source Channels (Junction Table)](#knowledge-source-channels-junction-table)
-10. [Relationships (ERD)](#relationships-erd)
+9.  [Newsletters Table](#newsletters-table)
+10. [Knowledge Source Channels (Junction Table)](#knowledge-source-channels-junction-table)
+11. [Relationships (ERD)](#relationships-erd)
 
 ---
 
@@ -26,6 +27,7 @@ CREATE TYPE platform_api AS ENUM ('none', 'wordpress', 'instagram_graph', 'faceb
 CREATE TYPE media_type AS ENUM ('instagram_post', 'article_feature', 'article_inline', 'icon');
 CREATE TYPE article_status AS ENUM ('draft', 'approved', 'scheduled', 'published', 'archived');
 CREATE TYPE post_status AS ENUM ('draft', 'approved', 'scheduled', 'published', 'deleted');
+CREATE TYPE newsletter_status AS ENUM ('draft', 'scheduled', 'sent');
 CREATE TYPE knowledge_source_type AS ENUM ('text', 'website', 'pdf', 'instagram', 'youtube', 'video_file', 'audio_file');
 CREATE TYPE processing_status AS ENUM ('pending', 'processed', 'error');
 CREATE TYPE embedding_status AS ENUM ('pending', 'complete', 'failed');
@@ -211,6 +213,34 @@ CREATE INDEX idx_recipients_status ON recipients(status);
 
 ---
 
+## `newsletters` Table
+
+Stores email newsletters.
+
+```sql
+CREATE TABLE newsletters (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    subject TEXT NOT NULL,
+    content TEXT NOT NULL, -- Stored as HTML
+    status newsletter_status NOT NULL DEFAULT 'draft',
+    publish_date TIMESTAMPTZ,
+    channel_id UUID NOT NULL REFERENCES channels(id) ON DELETE CASCADE,
+    header_image_url TEXT,
+    preview_text TEXT,
+    sent_date TIMESTAMPTZ,
+    recipient_count INTEGER,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
+-- Indexes
+CREATE INDEX idx_newsletters_status ON newsletters(status);
+CREATE INDEX idx_newsletters_publish_date ON newsletters(publish_date);
+CREATE INDEX idx_newsletters_channel_id ON newsletters(channel_id);
+```
+
+---
+
 ## `knowledge_source_channels` (Junction Table)
 
 This table creates a many-to-many relationship between knowledge sources and channels, allowing a single source to be associated with multiple channels.
@@ -295,7 +325,16 @@ erDiagram
         recipient_status status
     }
 
+    newsletters {
+        UUID id PK
+        text subject
+        newsletter_status status
+        timestamptz publish_date
+        UUID channel_id FK
+    }
+
     channels ||--o{ articles : "publishes"
+    channels ||--o{ newsletters : "publishes"
     articles ||--o{ posts : "links to"
     knowledge_sources ||--o{ knowledge_chunks : "contains"
     knowledge_sources }o--o{ knowledge_source_channels : "maps"

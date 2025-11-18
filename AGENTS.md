@@ -38,7 +38,21 @@ This script includes:
 
 When updating the database schema:
 
-1. **Manual Migration (Development)**:
+1. **Using Migration System (Recommended)**:
+   ```bash
+   # Create a new migration
+   bun run migration:create add_new_column_to_table
+   
+   # Edit the generated migration file with your SQL changes
+   
+   # Run all pending migrations
+   bun run migration:run
+   
+   # Check migration status
+   bun run migration:status
+   ```
+
+2. **Manual Migration (Development)**:
    ```bash
    # Connect to the running database container
    docker exec -it aistudio-postgres psql -U aistudio_user -d aistudio_content
@@ -47,8 +61,8 @@ When updating the database schema:
    ALTER TABLE table_name ADD COLUMN new_column VARCHAR(255);
    ```
 
-2. **Migration Scripts (Production)**:
-   Create migration scripts in the `database/migrations/` directory and execute them in order.
+3. **Migration Scripts (Production)**:
+   The migration system automatically tracks applied migrations in the `schema_migrations` table.
 
 ### Synchronization with Documentation
 
@@ -203,6 +217,22 @@ environment:
 
 ### Making Schema Changes
 
+1. Create a new migration:
+   ```bash
+   bun run migration:create describe_your_changes
+   ```
+2. Edit the generated migration file with your SQL changes
+3. Update `./docs/database_schema.md` documentation to reflect the changes
+4. Test changes in development:
+   ```bash
+   bun run migration:run
+   ```
+5. Verify tables are created correctly:
+   ```bash
+   docker exec aistudio-postgres psql -U aistudio_user -d aistudio_content -c "\dt"
+   ```
+   
+Alternative (for fresh database):
 1. Update `./database/init.sql` with new DDL
 2. Update `./docs/database_schema.md` documentation
 3. Test changes in development:

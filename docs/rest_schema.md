@@ -11,7 +11,8 @@ This document outlines the REST API endpoints for the Content AI Manager backend
 6.  [Posts API](#posts-api)
 7.  [Knowledge Sources API](#knowledge-sources-api)
 8.  [Recipients API](#recipients-api)
-9.  [AI Services API](#ai-services-api)
+9.  [Newsletters API](#newsletters-api)
+10. [AI Services API](#ai-services-api)
 
 ---
 
@@ -40,11 +41,11 @@ All API endpoints require authentication. The client must include a valid JSON W
 
 | Method | Endpoint                | Description                     |
 | ------ | ----------------------- | ------------------------------- |
-| `GET`  | `/`                     | Get a list of all channels.     |
-| `POST` | `/`                     | Create a new channel.           |
-| `GET`  | `/{channelId}`          | Get details of a single channel.|
-| `PUT`  | `/{channelId}`          | Update an existing channel.     |
-| `DELETE`| `/{channelId}`         | Delete a channel.               |
+| `GET`  | `/`                     | Retrieves a list of all channels. |
+| `POST` | `/`                     | Creates a new channel.          |
+| `GET`  | `/{channelId}`          | Retrieves a single channel by its ID. |
+| `PUT`  | `/{channelId}`          | Updates an existing channel.    |
+| `DELETE` | `/{channelId}`        | Deletes a channel.              |
 
 ---
 
@@ -54,10 +55,11 @@ All API endpoints require authentication. The client must include a valid JSON W
 
 | Method | Endpoint                | Description                     |
 | ------ | ----------------------- | ------------------------------- |
-| `GET`  | `/`                     | Get a list of media assets. Can be filtered by `?type=<MediaType>`. |
-| `POST` | `/`                     | Upload a new media asset. Expects `multipart/form-data`. |
-| `PUT`  | `/{assetId}`            | Update a media asset's details (title, description). |
-| `DELETE`| `/{assetId}`            | Delete a media asset.           |
+| `GET`  | `/`                     | Retrieves a list of all media assets. |
+| `POST` | `/`                     | Creates a new media asset.       |
+| `GET`  | `/{assetId}`            | Retrieves a single media asset by its ID. |
+| `PUT`  | `/{assetId}`            | Updates an existing media asset.  |
+| `DELETE` | `/{assetId}`          | Deletes a media asset.          |
 
 ---
 
@@ -67,11 +69,11 @@ All API endpoints require authentication. The client must include a valid JSON W
 
 | Method | Endpoint                | Description                     |
 | ------ | ----------------------- | ------------------------------- |
-| `GET`  | `/`                     | Get a list of articles. Can be filtered by `?status=<ArticleStatus>`. |
-| `POST` | `/`                     | Create a new article.           |
-| `GET`  | `/{articleId}`          | Get a single article by its ID. |
-| `PUT`  | `/{articleId}`          | Update an existing article.     |
-| `DELETE`| `/{articleId}`         | Archive or delete an article.   |
+| `GET`  | `/`                     | Retrieves a list of all articles. |
+| `POST` | `/`                     | Creates a new article.          |
+| `GET`  | `/{articleId}`          | Retrieves a single article by its ID. |
+| `PUT`  | `/{articleId}`          | Updates an existing article.    |
+| `DELETE` | `/{articleId}`        | Deletes an article.             |
 
 ---
 
@@ -81,11 +83,11 @@ All API endpoints require authentication. The client must include a valid JSON W
 
 | Method | Endpoint                | Description                     |
 | ------ | ----------------------- | ------------------------------- |
-| `GET`  | `/`                     | Get a list of posts. Can be filtered by `?status=<PostStatus>`. |
-| `POST` | `/`                     | Create a new post.              |
-| `GET`  | `/{postId}`             | Get a single post by its ID.    |
-| `PUT`  | `/{postId}`             | Update an existing post.        |
-| `DELETE`| `/{postId}`             | Delete a post.                  |
+| `GET`  | `/`                     | Retrieves a list of all posts.  |
+| `POST` | `/`                     | Creates a new post.             |
+| `GET`  | `/{postId}`             | Retrieves a single post by its ID. |
+| `PUT`  | `/{postId}`             | Updates an existing post.       |
+| `DELETE` | `/{postId}`           | Deletes a post.                 |
 
 ---
 
@@ -95,12 +97,12 @@ All API endpoints require authentication. The client must include a valid JSON W
 
 | Method | Endpoint                | Description                     |
 | ------ | ----------------------- | ------------------------------- |
-| `GET`  | `/`                     | Get a list of all knowledge sources. |
-| `POST` | `/`                     | Create a new knowledge source. This will automatically trigger the ingestion process. |
-| `GET`  | `/{sourceId}`           | Get details of a single source, including ingestion logs and chunks. |
-| `PUT`  | `/{sourceId}`           | Update a knowledge source's details. |
-| `POST` | `/{sourceId}/reingest`  | Trigger a re-ingestion of the source content. |
-| `DELETE`| `/{sourceId}`         | Delete a knowledge source.      |
+| `GET`  | `/`                     | Retrieves a list of all knowledge sources. |
+| `POST` | `/`                     | Creates a new knowledge source. Triggers background ingestion. |
+| `GET`  | `/{sourceId}`           | Retrieves a single knowledge source by its ID. |
+| `PUT`  | `/{sourceId}`           | Updates an existing knowledge source. May trigger re-ingestion. |
+| `DELETE` | `/{sourceId}`         | Deletes a knowledge source.     |
+| `POST` | `/{sourceId}/reingest`  | Explicitly triggers re-ingestion of a source. |
 
 ---
 
@@ -110,26 +112,72 @@ All API endpoints require authentication. The client must include a valid JSON W
 
 | Method | Endpoint                | Description                     |
 | ------ | ----------------------- | ------------------------------- |
-| `GET`  | `/`                     | Get a list of all recipients.   |
-| `POST` | `/`                     | Create a new recipient.         |
-| `GET`  | `/{recipientId}`        | Get details of a single recipient.|
-| `PUT`  | `/{recipientId}`        | Update an existing recipient.   |
-| `DELETE`| `/{recipientId}`       | Delete a recipient.             |
+| `GET`  | `/`                     | Retrieves a list of all newsletter recipients. |
+| `POST` | `/`                     | Creates a new recipient.        |
+| `GET`  | `/{recipientId}`        | Retrieves a single recipient by ID. |
+| `PUT`  | `/{recipientId}`        | Updates an existing recipient.  |
+| `DELETE` | `/{recipientId}`      | Deletes a recipient.            |
+
+---
+
+## Newsletters API
+
+**Resource URL**: `/api/newsletters`
+
+| Method | Endpoint                | Description                     |
+| ------ | ----------------------- | ------------------------------- |
+| `GET`  | `/`                     | Retrieves a list of all newsletters. |
+| `POST` | `/`                     | Creates a new newsletter.       |
+| `GET`  | `/{newsletterId}`       | Retrieves a single newsletter by ID. |
+| `PUT`  | `/{newsletterId}`       | Updates an existing newsletter. |
+| `DELETE` | `/{newsletterId}`     | Deletes a newsletter.           |
 
 ---
 
 ## AI Services API
 
-These endpoints proxy requests to the Gemini API, allowing for secure key management and centralized logic.
+These endpoints provide access to AI-powered generation and editing capabilities, acting as a proxy to a service like Google's Gemini API.
 
-**Resource URL**: `/api/ai`
+| Method | Endpoint                             | Description                               |
+| ------ | ------------------------------------ | ----------------------------------------- |
+| `POST` | `/ai/generate/article`               | Revises or generates an article based on a prompt. |
+| `POST` | `/ai/generate/newsletter`            | Revises or generates a newsletter based on a prompt. |
+| `POST` | `/ai/generate/post-caption`          | Generates a simple post caption from a prompt. |
+| `POST` | `/ai/generate/post-details`          | Generates a full post (caption, alt text, tags) from a prompt. |
+| `POST` | `/ai/generate/image`                 | Generates an image from a text prompt and aspect ratio. |
+| `POST` | `/ai/edit/image`                     | Edits an existing image using a prompt.     |
+| `POST` | `/ai/generate/bulk`                  | Generates multiple articles and posts in a single request. |
+| `POST` | `/ai/generate/article-title`         | Generates a title from article content.   |
+| `POST` | `/ai/generate/newsletter-subject`    | Generates a subject line from newsletter content. |
+| `POST` | `/ai/generate/article-metadata`      | Generates SEO metadata and an excerpt from article content. |
+| `POST` | `/ai/generate/newsletter-preview`    | Generates preview text from newsletter content. |
 
-| Method | Endpoint                     | Description                                            | Request Body Example                                     |
-| ------ | ---------------------------- | ------------------------------------------------------ | -------------------------------------------------------- |
-| `POST` | `/generate/article`          | Generate or revise an article's content.               | `{ "prompt": "...", "currentContent": "..." }`           |
-| `POST` | `/generate/article-title`    | Generate a title based on article content.             | `{ "content": "..." }`                                   |
-| `POST` | `/generate/article-metadata` | Generate SEO metadata and an excerpt from content.     | `{ "content": "..." }`                                   |
-| `POST` | `/generate/post-details`     | Generate caption, alt text, and tags for a post.       | `{ "prompt": "...", "currentCaption": "..." }`           |
-| `POST` | `/generate/image`            | Generate an image from a text prompt.                  | `{ "prompt": "...", "aspectRatio": "1:1" }`               |
-| `POST` | `/edit/image`                | Edit an image based on a prompt and base image data.   | `{ "prompt": "...", "base64ImageData": "...", "mimeType": "..." }` |
-| `POST` | `/generate/bulk`             | Generate multiple articles and posts.                  | `{ "articleCount": 2, "postCount": 3, "knowledgeSummary": "..." }` |
+### Request & Response Examples
+
+#### `POST /ai/generate/article`
+-   **Request Body**: `{ "prompt": "Instruction: \"<prompt>\". Revise the following article object: <JSON string of Article>", "channel_id": "..." }`
+-   **Response Body**: The full `Article` object.
+
+#### `POST /ai/generate/newsletter`
+-   **Request Body**: `{ "prompt": "Instruction: \"<prompt>\". Revise the following newsletter object: <JSON string of Newsletter>", "channel_id": "..." }`
+-   **Response Body**: The full `Newsletter` object.
+
+#### `POST /ai/generate/post-caption`
+-   **Request Body**: `{ "prompt": "A witty caption about coffee" }`
+-   **Response Body**: `{ "content": "Life happens. Coffee helps." }`
+
+#### `POST /ai/generate/post-details`
+-   **Request Body**: `{ "prompt": "make it snappy", "currentCaption": "This is a post about our new product." }`
+-   **Response Body**: `{ "content": "Our new product is here!", "altText": "A photo of the new product on a table.", "tags": ["#newproduct", "#launch"] }`
+
+#### `POST /ai/generate/image`
+-   **Request Body**: `{ "prompt": "a robot reading a book", "aspectRatio": "1:1" }`
+-   **Response Body**: `{ "image_url": "data:image/png;base64,..." }`
+
+#### `POST /ai/edit/image`
+-   **Request Body**: `{ "base64ImageData": "...", "mimeType": "image/png", "prompt": "add a hat to the robot" }`
+-   **Response Body**: `{ "image_url": "data:image/png;base64,..." }`
+
+#### `POST /ai/generate/article-metadata`
+-   **Request Body**: `{ "title": "My Article", "content": "This is the content..." }`
+-   **Response Body**: `{ "seo": { "title": "...", "description": "...", "keywords": "...", "slug": "..." }, "excerpt": "..." }`

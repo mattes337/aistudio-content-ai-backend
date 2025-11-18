@@ -14,6 +14,7 @@ import articlesRouter from './routes/articles';
 import postsRouter from './routes/posts';
 import knowledgeSourcesRouter from './routes/knowledge-sources';
 import recipientsRouter from './routes/recipients';
+import newslettersRouter from './routes/newsletters';
 import aiRouter from './routes/ai';
 
 const config = loadEnvConfig();
@@ -58,6 +59,7 @@ app.use('/api/articles', articlesRouter);
 app.use('/api/posts', postsRouter);
 app.use('/api/knowledge-sources', knowledgeSourcesRouter);
 app.use('/api/recipients', recipientsRouter);
+app.use('/api/newsletters', newslettersRouter);
 app.use('/api/ai', aiRouter);
 
 // 404 handler

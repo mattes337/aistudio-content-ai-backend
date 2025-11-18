@@ -1,17 +1,69 @@
+-- Migration 001: Initial Schema
+-- This migration creates the initial database schema
+
 -- Enable the pgvector extension
 CREATE EXTENSION IF NOT EXISTS vector;
 
 -- Create custom enum types
-CREATE TYPE channel_type AS ENUM ('website', 'instagram', 'facebook', 'x', 'newsletter');
-CREATE TYPE platform_api AS ENUM ('none', 'wordpress', 'instagram_graph', 'facebook_graph', 'x_api', 'email_api');
-CREATE TYPE media_type AS ENUM ('instagram_post', 'article_feature', 'article_inline', 'icon');
-CREATE TYPE article_status AS ENUM ('draft', 'approved', 'scheduled', 'published', 'archived');
-CREATE TYPE post_status AS ENUM ('draft', 'approved', 'scheduled', 'published', 'deleted');
-CREATE TYPE knowledge_source_type AS ENUM ('text', 'website', 'pdf', 'instagram', 'youtube', 'video_file', 'audio_file');
-CREATE TYPE processing_status AS ENUM ('pending', 'processed', 'error');
-CREATE TYPE embedding_status AS ENUM ('pending', 'complete', 'failed');
-CREATE TYPE recipient_status AS ENUM ('subscribed', 'unsubscribed');
-CREATE TYPE newsletter_status AS ENUM ('draft', 'scheduled', 'sent');
+DO $$ BEGIN
+    CREATE TYPE channel_type AS ENUM ('website', 'instagram', 'facebook', 'x', 'newsletter');
+EXCEPTION
+    WHEN duplicate_object THEN null;
+END $$;
+
+DO $$ BEGIN
+    CREATE TYPE platform_api AS ENUM ('none', 'wordpress', 'instagram_graph', 'facebook_graph', 'x_api', 'email_api');
+EXCEPTION
+    WHEN duplicate_object THEN null;
+END $$;
+
+DO $$ BEGIN
+    CREATE TYPE media_type AS ENUM ('instagram_post', 'article_feature', 'article_inline', 'icon');
+EXCEPTION
+    WHEN duplicate_object THEN null;
+END $$;
+
+DO $$ BEGIN
+    CREATE TYPE article_status AS ENUM ('draft', 'approved', 'scheduled', 'published', 'archived');
+EXCEPTION
+    WHEN duplicate_object THEN null;
+END $$;
+
+DO $$ BEGIN
+    CREATE TYPE post_status AS ENUM ('draft', 'approved', 'scheduled', 'published', 'deleted');
+EXCEPTION
+    WHEN duplicate_object THEN null;
+END $$;
+
+DO $$ BEGIN
+    CREATE TYPE knowledge_source_type AS ENUM ('text', 'website', 'pdf', 'instagram', 'youtube', 'video_file', 'audio_file');
+EXCEPTION
+    WHEN duplicate_object THEN null;
+END $$;
+
+DO $$ BEGIN
+    CREATE TYPE processing_status AS ENUM ('pending', 'processed', 'error');
+EXCEPTION
+    WHEN duplicate_object THEN null;
+END $$;
+
+DO $$ BEGIN
+    CREATE TYPE embedding_status AS ENUM ('pending', 'complete', 'failed');
+EXCEPTION
+    WHEN duplicate_object THEN null;
+END $$;
+
+DO $$ BEGIN
+    CREATE TYPE recipient_status AS ENUM ('subscribed', 'unsubscribed');
+EXCEPTION
+    WHEN duplicate_object THEN null;
+END $$;
+
+DO $$ BEGIN
+    CREATE TYPE newsletter_status AS ENUM ('draft', 'scheduled', 'sent');
+EXCEPTION
+    WHEN duplicate_object THEN null;
+END $$;
 
 -- Create tables
 CREATE TABLE IF NOT EXISTS channels (
@@ -149,10 +201,3 @@ CREATE TABLE IF NOT EXISTS newsletters (
 CREATE INDEX IF NOT EXISTS idx_newsletters_status ON newsletters(status);
 CREATE INDEX IF NOT EXISTS idx_newsletters_publish_date ON newsletters(publish_date);
 CREATE INDEX IF NOT EXISTS idx_newsletters_channel_id ON newsletters(channel_id);
-
--- Migration tracking table
-CREATE TABLE IF NOT EXISTS schema_migrations (
-    id SERIAL PRIMARY KEY,
-    migration_name VARCHAR(255) NOT NULL UNIQUE,
-    applied_at TIMESTAMPTZ NOT NULL DEFAULT now()
-);

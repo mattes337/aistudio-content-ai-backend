@@ -8,8 +8,12 @@
     "build": "bun build src/server.ts --outdir ./dist --target bun",
     "start": "bun dist/server.js",
     "test": "bun test",
-    "db:migrate": "bun run src/database/migrate.ts",
-    "db:seed": "bun run src/database/seed.ts"
+    "db:migrate": "bun run scripts/runMigrations.ts",
+    "db:seed": "bun run src/database/seed.ts",
+    "migration:run": "bun run scripts/runMigrations.ts",
+    "migration:create": "bun run scripts/createMigration.ts",
+    "migration:status": "bun -e \"import('./src/utils/migrationRunner.js').then(m => m.runMigrationsCLI())\"",
+    "migration:test": "bun run src/utils/testMigrations.ts"
   },
   "dependencies": {
     "@types/bcryptjs": "^2.4.6",

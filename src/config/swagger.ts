@@ -919,6 +919,148 @@ const options = {
               description: 'Date of last notification sent to recipient'
             }
           }
+        },
+        Newsletter: {
+          type: 'object',
+          properties: {
+            id: {
+              type: 'string',
+              description: 'Newsletter unique identifier'
+            },
+            subject: {
+              type: 'string',
+              description: 'Newsletter subject line'
+            },
+            content: {
+              type: 'string',
+              description: 'Newsletter content (HTML)'
+            },
+            status: {
+              type: 'string',
+              enum: ['draft', 'scheduled', 'sent'],
+              description: 'Newsletter status'
+            },
+            publish_date: {
+              type: 'string',
+              format: 'date-time',
+              description: 'Date when newsletter is scheduled to be sent'
+            },
+            channel_id: {
+              type: 'string',
+              description: 'Channel ID this newsletter belongs to'
+            },
+            header_image_url: {
+              type: 'string',
+              description: 'URL to newsletter header image'
+            },
+            preview_text: {
+              type: 'string',
+              description: 'Preview text shown in email clients'
+            },
+            sent_date: {
+              type: 'string',
+              format: 'date-time',
+              description: 'Date when newsletter was actually sent'
+            },
+            recipient_count: {
+              type: 'integer',
+              description: 'Number of recipients this newsletter was sent to'
+            },
+            created_at: {
+              type: 'string',
+              format: 'date-time',
+              description: 'Newsletter creation timestamp'
+            },
+            updated_at: {
+              type: 'string',
+              format: 'date-time',
+              description: 'Last update timestamp'
+            }
+          }
+        },
+        CreateNewsletterRequest: {
+          type: 'object',
+          required: ['subject', 'content', 'channel_id'],
+          properties: {
+            subject: {
+              type: 'string',
+              description: 'Newsletter subject line'
+            },
+            content: {
+              type: 'string',
+              description: 'Newsletter content (HTML)'
+            },
+            status: {
+              type: 'string',
+              enum: ['draft', 'scheduled', 'sent'],
+              description: 'Newsletter status'
+            },
+            publish_date: {
+              type: 'string',
+              format: 'date-time',
+              description: 'Date when newsletter is scheduled to be sent'
+            },
+            channel_id: {
+              type: 'string',
+              description: 'Channel ID this newsletter belongs to'
+            },
+            header_image_url: {
+              type: 'string',
+              description: 'URL to newsletter header image'
+            },
+            preview_text: {
+              type: 'string',
+              description: 'Preview text shown in email clients'
+            },
+            recipient_count: {
+              type: 'integer',
+              description: 'Number of recipients this newsletter was sent to'
+            }
+          }
+        },
+        UpdateNewsletterRequest: {
+          type: 'object',
+          properties: {
+            subject: {
+              type: 'string',
+              description: 'Newsletter subject line'
+            },
+            content: {
+              type: 'string',
+              description: 'Newsletter content (HTML)'
+            },
+            status: {
+              type: 'string',
+              enum: ['draft', 'scheduled', 'sent'],
+              description: 'Newsletter status'
+            },
+            publish_date: {
+              type: 'string',
+              format: 'date-time',
+              description: 'Date when newsletter is scheduled to be sent'
+            },
+            channel_id: {
+              type: 'string',
+              description: 'Channel ID this newsletter belongs to'
+            },
+            header_image_url: {
+              type: 'string',
+              description: 'URL to newsletter header image'
+            },
+            preview_text: {
+              type: 'string',
+              description: 'Preview text shown in email clients'
+            },
+            sent_date: {
+              type: 'string',
+              format: 'date-time',
+              description: 'Date when newsletter was actually sent'
+            },
+            recipient_count: {
+              type: 'integer',
+              description: 'Number of recipients this newsletter was sent to'
+            }
+          }
         }
       }
     },
