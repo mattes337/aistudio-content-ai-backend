@@ -7,6 +7,7 @@ import { loadEnvConfig } from './utils/env';
 import logger from './utils/logger';
 import { specs } from './config/swagger';
 
+
 // Import routes
 import channelsRouter from './routes/channels';
 import mediaAssetsRouter from './routes/media-assets';
@@ -39,17 +40,35 @@ app.get('/health', (req, res) => {
   res.json({ status: 'ok', timestamp: new Date().toISOString() });
 });
 
-// Swagger UI documentation
+// Middleware to detect base URL for Swagger
+app.use((req, res, next) => {
+  const forwardedProto = req.headers['x-forwarded-proto'];
+  const forwardedHost = req.headers['x-forwarded-host'];
+  
+  if (forwardedHost && forwardedProto) {
+    // We're behind a reverse proxy
+    (req as any).baseUrl = `${forwardedProto}://${forwardedHost}`;
+  } else {
+    // Direct connection
+    (req as any).baseUrl = req.protocol + '://' + req.get('host');
+  }
+  next();
+});
+
+// Swagger UI documentation with dynamic base URL
 app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(specs, {
   explorer: true,
   customCss: '.swagger-ui .topbar { display: none }',
   customSiteTitle: 'Content AI Backend API Documentation'
 }));
 
-// Raw OpenAPI JSON specification
+// Raw OpenAPI JSON specification with dynamic base URL
 app.get('/api-docs.json', (req, res) => {
+  const baseUrl = (req as any).baseUrl || req.protocol + '://' + req.get('host');
+  let specString = JSON.stringify(specs);
+  specString = specString.replace(/{request.baseUrl}/g, baseUrl);
   res.setHeader('Content-Type', 'application/json');
-  res.send(specs);
+  res.send(specString);
 });
 
 // API routes

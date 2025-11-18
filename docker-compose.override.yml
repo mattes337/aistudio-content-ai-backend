@@ -15,4 +15,12 @@ services:
     volumes:
       - .:/app
       - /app/node_modules
-    command: bun run dev
+    command: >
+      sh -c "
+        echo 'Waiting for database to start...'
+        sleep 10
+        echo 'Running database migrations...'
+        bun run migration:run
+        echo 'Starting backend...'
+        bun run dev
+      "

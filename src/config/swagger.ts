@@ -19,7 +19,7 @@ const options = {
       {
         url: config.nodeEnv === 'production' 
           ? 'https://your-domain.com' 
-          : `http://localhost:${config.port}`,
+          : '{request.baseUrl}', // Will be replaced by dynamic detection
         description: config.nodeEnv === 'production' ? 'Production server' : 'Development server'
       }
     ],
@@ -1077,4 +1077,20 @@ const options = {
   ]
 };
 
-export const specs = swaggerJsdoc(options);
+// Create custom swagger options that detect correct base URL
+const swaggerOptions = {
+  ...options,
+  swaggerDefinition: {
+    ...options.definition,
+    servers: [
+      {
+        url: config.nodeEnv === 'production' 
+          ? 'https://your-domain.com' 
+          : '{swaggerBaseUrl}', // This will be replaced by middleware
+        description: config.nodeEnv === 'production' ? 'Production server' : 'Development server'
+      }
+    ]
+  }
+};
+
+export const specs = swaggerJsdoc(swaggerOptions);

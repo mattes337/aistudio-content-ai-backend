@@ -1,0 +1,57 @@
+version: '3.8'
+
+services:
+  postgres:
+    image: pgvector/pgvector:pg16
+    container_name: aistudio-postgres
+    environment:
+      POSTGRES_DB: aistudio_content
+      POSTGRES_USER: aistudio_user
+      POSTGRES_PASSWORD: aistudio_password
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./database/init.sql:/docker-entrypoint-initdb.d/init.sql
+    networks:
+      - aistudio-network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U aistudio_user -d aistudio_content"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  backend:
+    build: .
+    container_name: aistudio-backend
+    ports:
+      - "3000:3000"
+    environment:
+      NODE_ENV: development
+      DATABASE_URL: postgresql://aistudio_user:aistudio_password@postgres:5432/aistudio_content
+      LOG_LEVEL: debug
+      JWT_SECRET: your-jwt-secret-change-in-production
+    volumes:
+      - .:/app
+      - /app/node_modules
+    networks:
+      - aistudio-network
+    depends_on:
+      postgres:
+        condition: service_healthy
+    command: >
+      sh -c "
+        echo 'Waiting for database to be ready...'
+        sleep 15
+        echo 'Running database migrations...'
+        bun run migration:run
+        echo 'Starting backend...'
+        bun run dev
+      "
+
+volumes:
+  postgres_data:
+
+networks:
+  aistudio-network:
+    driver: bridge
