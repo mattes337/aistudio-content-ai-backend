@@ -16,8 +16,8 @@ export class ChannelController {
 
   static async getChannelById(req: Request, res: Response) {
     try {
-      const { id } = req.params;
-      const channel = await DatabaseService.getChannelById(id);
+      const { channelId } = req.params;
+      const channel = await DatabaseService.getChannelById(channelId);
       
       if (!channel) {
         return res.status(404).json({ message: 'Channel not found' });
@@ -43,8 +43,8 @@ export class ChannelController {
 
   static async updateChannel(req: Request, res: Response) {
     try {
-      const { id } = req.params;
-      const channelData: UpdateChannelRequest = { id, ...req.body };
+      const { channelId } = req.params;
+      const channelData: UpdateChannelRequest = { id: channelId, ...req.body };
       const channel = await DatabaseService.updateChannel(channelData);
       
       if (!channel) {
@@ -60,8 +60,8 @@ export class ChannelController {
 
   static async deleteChannel(req: Request, res: Response) {
     try {
-      const { id } = req.params;
-      const deleted = await DatabaseService.deleteChannel(id);
+      const { channelId } = req.params;
+      const deleted = await DatabaseService.deleteChannel(channelId);
       
       if (!deleted) {
         return res.status(404).json({ message: 'Channel not found' });

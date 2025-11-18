@@ -82,7 +82,7 @@ router.post('/', validateKnowledgeSource, KnowledgeSourceController.createKnowle
  *       500:
  *         description: Internal server error
  */
-router.get('/:id', KnowledgeSourceController.getKnowledgeSourceById);
+router.get('/:sourceId', KnowledgeSourceController.getKnowledgeSourceById);
 
 /**
  * @swagger
@@ -117,7 +117,7 @@ router.get('/:id', KnowledgeSourceController.getKnowledgeSourceById);
  *       500:
  *         description: Internal server error
  */
-router.put('/:id', validateKnowledgeSource, KnowledgeSourceController.updateKnowledgeSource);
+router.put('/:sourceId', validateKnowledgeSource, KnowledgeSourceController.updateKnowledgeSource);
 
 /**
  * @swagger
@@ -142,7 +142,7 @@ router.put('/:id', validateKnowledgeSource, KnowledgeSourceController.updateKnow
  *       500:
  *         description: Internal server error
  */
-router.delete('/:id', KnowledgeSourceController.deleteKnowledgeSource);
+router.delete('/:sourceId', KnowledgeSourceController.deleteKnowledgeSource);
 
 /**
  * @swagger
@@ -175,6 +175,6 @@ router.delete('/:id', KnowledgeSourceController.deleteKnowledgeSource);
  *       500:
  *         description: Internal server error
  */
-router.post('/:id/reingest', KnowledgeSourceController.reingestKnowledgeSource);
+router.post('/:sourceId/reingest', KnowledgeSourceController.reingestKnowledgeSource);
 
 export default router;

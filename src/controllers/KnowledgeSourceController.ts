@@ -16,14 +16,14 @@ export class KnowledgeSourceController {
 
   static async getKnowledgeSourceById(req: Request, res: Response) {
     try {
-      const { id } = req.params;
-      const source = await DatabaseService.getKnowledgeSourceById(id);
+      const { sourceId } = req.params;
+      const source = await DatabaseService.getKnowledgeSourceById(sourceId);
       
       if (!source) {
         return res.status(404).json({ message: 'Knowledge source not found' });
       }
 
-      const chunks = await DatabaseService.getKnowledgeChunks(id);
+      const chunks = await DatabaseService.getKnowledgeChunks(sourceId);
       
       res.json({
         ...source,
@@ -48,8 +48,8 @@ export class KnowledgeSourceController {
 
   static async updateKnowledgeSource(req: Request, res: Response) {
     try {
-      const { id } = req.params;
-      const sourceData: UpdateKnowledgeSourceRequest = { id, ...req.body };
+      const { sourceId } = req.params;
+      const sourceData: UpdateKnowledgeSourceRequest = { id: sourceId, ...req.body };
       const source = await DatabaseService.updateKnowledgeSource(sourceData);
       
       if (!source) {
@@ -65,8 +65,8 @@ export class KnowledgeSourceController {
 
   static async deleteKnowledgeSource(req: Request, res: Response) {
     try {
-      const { id } = req.params;
-      const deleted = await DatabaseService.deleteKnowledgeSource(id);
+      const { sourceId } = req.params;
+      const deleted = await DatabaseService.deleteKnowledgeSource(sourceId);
       
       if (!deleted) {
         return res.status(404).json({ message: 'Knowledge source not found' });
@@ -81,8 +81,8 @@ export class KnowledgeSourceController {
 
   static async reingestKnowledgeSource(req: Request, res: Response) {
     try {
-      const { id } = req.params;
-      const source = await DatabaseService.getKnowledgeSourceById(id);
+      const { sourceId } = req.params;
+      const source = await DatabaseService.getKnowledgeSourceById(sourceId);
       
       if (!source) {
         return res.status(404).json({ message: 'Knowledge source not found' });

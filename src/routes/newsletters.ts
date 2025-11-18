@@ -82,7 +82,7 @@ router.post('/', NewsletterController.createNewsletter);
  *       500:
  *         description: Internal server error
  */
-router.get('/:id', NewsletterController.getNewsletterById);
+router.get('/:newsletterId', NewsletterController.getNewsletterById);
 
 /**
  * @swagger
@@ -117,7 +117,7 @@ router.get('/:id', NewsletterController.getNewsletterById);
  *       500:
  *         description: Internal server error
  */
-router.put('/:id', NewsletterController.updateNewsletter);
+router.put('/:newsletterId', NewsletterController.updateNewsletter);
 
 /**
  * @swagger
@@ -142,6 +142,6 @@ router.put('/:id', NewsletterController.updateNewsletter);
  *       500:
  *         description: Internal server error
  */
-router.delete('/:id', NewsletterController.deleteNewsletter);
+router.delete('/:newsletterId', NewsletterController.deleteNewsletter);
 
 export default router;

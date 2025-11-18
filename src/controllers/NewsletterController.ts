@@ -16,8 +16,8 @@ export class NewsletterController {
 
   static async getNewsletterById(req: Request, res: Response) {
     try {
-      const { id } = req.params;
-      const newsletter = await DatabaseService.getNewsletterById(id);
+      const { newsletterId } = req.params;
+      const newsletter = await DatabaseService.getNewsletterById(newsletterId);
       
       if (!newsletter) {
         return res.status(404).json({ message: 'Newsletter not found' });
@@ -43,8 +43,8 @@ export class NewsletterController {
 
   static async updateNewsletter(req: Request, res: Response) {
     try {
-      const { id } = req.params;
-      const newsletterData: UpdateNewsletterRequest = { id, ...req.body };
+      const { newsletterId } = req.params;
+      const newsletterData: UpdateNewsletterRequest = { id: newsletterId, ...req.body };
       const newsletter = await DatabaseService.updateNewsletter(newsletterData);
       
       if (!newsletter) {
@@ -60,8 +60,8 @@ export class NewsletterController {
 
   static async deleteNewsletter(req: Request, res: Response) {
     try {
-      const { id } = req.params;
-      const deleted = await DatabaseService.deleteNewsletter(id);
+      const { newsletterId } = req.params;
+      const deleted = await DatabaseService.deleteNewsletter(newsletterId);
       
       if (!deleted) {
         return res.status(404).json({ message: 'Newsletter not found' });

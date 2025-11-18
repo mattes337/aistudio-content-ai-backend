@@ -16,8 +16,8 @@ export class RecipientController {
 
   static async getRecipientById(req: Request, res: Response) {
     try {
-      const { id } = req.params;
-      const recipient = await DatabaseService.getRecipientById(id);
+      const { recipientId } = req.params;
+      const recipient = await DatabaseService.getRecipientById(recipientId);
       
       if (!recipient) {
         return res.status(404).json({ message: 'Recipient not found' });
@@ -43,8 +43,8 @@ export class RecipientController {
 
   static async updateRecipient(req: Request, res: Response) {
     try {
-      const { id } = req.params;
-      const recipientData: UpdateRecipientRequest = { id, ...req.body };
+      const { recipientId } = req.params;
+      const recipientData: UpdateRecipientRequest = { id: recipientId, ...req.body };
       const recipient = await DatabaseService.updateRecipient(recipientData);
       
       if (!recipient) {
@@ -60,8 +60,8 @@ export class RecipientController {
 
   static async deleteRecipient(req: Request, res: Response) {
     try {
-      const { id } = req.params;
-      const deleted = await DatabaseService.deleteRecipient(id);
+      const { recipientId } = req.params;
+      const deleted = await DatabaseService.deleteRecipient(recipientId);
       
       if (!deleted) {
         return res.status(404).json({ message: 'Recipient not found' });

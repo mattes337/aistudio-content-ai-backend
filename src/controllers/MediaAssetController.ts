@@ -17,8 +17,8 @@ export class MediaAssetController {
 
   static async getMediaAssetById(req: Request, res: Response) {
     try {
-      const { id } = req.params;
-      const asset = await DatabaseService.getMediaAssetById(id);
+      const { assetId } = req.params;
+      const asset = await DatabaseService.getMediaAssetById(assetId);
       
       if (!asset) {
         return res.status(404).json({ message: 'Media asset not found' });
@@ -44,8 +44,8 @@ export class MediaAssetController {
 
   static async updateMediaAsset(req: Request, res: Response) {
     try {
-      const { id } = req.params;
-      const assetData: UpdateMediaAssetRequest = { id, ...req.body };
+      const { assetId } = req.params;
+      const assetData: UpdateMediaAssetRequest = { id: assetId, ...req.body };
       const asset = await DatabaseService.updateMediaAsset(assetData);
       
       if (!asset) {
@@ -61,8 +61,8 @@ export class MediaAssetController {
 
   static async deleteMediaAsset(req: Request, res: Response) {
     try {
-      const { id } = req.params;
-      const deleted = await DatabaseService.deleteMediaAsset(id);
+      const { assetId } = req.params;
+      const deleted = await DatabaseService.deleteMediaAsset(assetId);
       
       if (!deleted) {
         return res.status(404).json({ message: 'Media asset not found' });

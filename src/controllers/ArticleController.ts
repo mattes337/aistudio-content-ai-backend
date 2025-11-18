@@ -17,8 +17,8 @@ export class ArticleController {
 
   static async getArticleById(req: Request, res: Response) {
     try {
-      const { id } = req.params;
-      const article = await DatabaseService.getArticleById(id);
+      const { articleId } = req.params;
+      const article = await DatabaseService.getArticleById(articleId);
       
       if (!article) {
         return res.status(404).json({ message: 'Article not found' });
@@ -44,8 +44,8 @@ export class ArticleController {
 
   static async updateArticle(req: Request, res: Response) {
     try {
-      const { id } = req.params;
-      const articleData: UpdateArticleRequest = { id, ...req.body };
+      const { articleId } = req.params;
+      const articleData: UpdateArticleRequest = { id: articleId, ...req.body };
       const article = await DatabaseService.updateArticle(articleData);
       
       if (!article) {
@@ -61,8 +61,8 @@ export class ArticleController {
 
   static async deleteArticle(req: Request, res: Response) {
     try {
-      const { id } = req.params;
-      const deleted = await DatabaseService.deleteArticle(id);
+      const { articleId } = req.params;
+      const deleted = await DatabaseService.deleteArticle(articleId);
       
       if (!deleted) {
         return res.status(404).json({ message: 'Article not found' });

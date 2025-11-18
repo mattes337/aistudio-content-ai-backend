@@ -17,8 +17,8 @@ export class PostController {
 
   static async getPostById(req: Request, res: Response) {
     try {
-      const { id } = req.params;
-      const post = await DatabaseService.getPostById(id);
+      const { postId } = req.params;
+      const post = await DatabaseService.getPostById(postId);
       
       if (!post) {
         return res.status(404).json({ message: 'Post not found' });
@@ -44,8 +44,8 @@ export class PostController {
 
   static async updatePost(req: Request, res: Response) {
     try {
-      const { id } = req.params;
-      const postData: UpdatePostRequest = { id, ...req.body };
+      const { postId } = req.params;
+      const postData: UpdatePostRequest = { id: postId, ...req.body };
       const post = await DatabaseService.updatePost(postData);
       
       if (!post) {
@@ -61,8 +61,8 @@ export class PostController {
 
   static async deletePost(req: Request, res: Response) {
     try {
-      const { id } = req.params;
-      const deleted = await DatabaseService.deletePost(id);
+      const { postId } = req.params;
+      const deleted = await DatabaseService.deletePost(postId);
       
       if (!deleted) {
         return res.status(404).json({ message: 'Post not found' });
