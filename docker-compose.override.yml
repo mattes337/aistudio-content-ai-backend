@@ -1,0 +1,18 @@
+version: '3.8'
+
+services:
+  postgres:
+    environment:
+      POSTGRES_DB: aistudio_content_test
+      POSTGRES_USER: aistudio_test_user
+      POSTGRES_PASSWORD: aistudio_test_password
+
+  backend:
+    environment:
+      NODE_ENV: development
+      DATABASE_URL: postgresql://aistudio_test_user:aistudio_test_password@postgres:5432/aistudio_content_test
+      LOG_LEVEL: debug
+    volumes:
+      - .:/app
+      - /app/node_modules
+    command: bun run dev

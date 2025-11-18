@@ -1,0 +1,33 @@
+# Use the official Bun image
+from oven/bun:1-alpine
+
+# Set working directory
+WORKDIR /app
+
+# Copy package files
+COPY package.json bun.lock ./
+
+# Install dependencies
+RUN bun install --frozen-lockfile --production
+
+# Copy source code
+COPY . .
+
+# Build the application
+RUN bun run build
+
+# Create uploads directory
+RUN mkdir -p /app/uploads
+
+# Expose port
+EXPOSE 3000
+
+# Set environment variables
+ENV NODE_ENV=production
+
+# Health check
+HEALTHCHECK --interval=30s --timeout=3s --start-period=5s --retries=3 \
+  CMD curl -f http://localhost:3000/health || exit 1
+
+# Run the application
+CMD ["bun", "run", "start"]

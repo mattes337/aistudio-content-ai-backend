@@ -1,0 +1,44 @@
+version: '3.8'
+
+services:
+  postgres:
+    image: pgvector/pgvector:pg16
+    container_name: aistudio-postgres
+    environment:
+      POSTGRES_DB: aistudio_content
+      POSTGRES_USER: aistudio_user
+      POSTGRES_PASSWORD: aistudio_password
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./database/init.sql:/docker-entrypoint-initdb.d/init.sql
+    networks:
+      - aistudio-network
+
+  backend:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: aistudio-backend
+    environment:
+      NODE_ENV: production
+      DATABASE_URL: postgresql://aistudio_user:aistudio_password@postgres:5432/aistudio_content
+      PORT: 3000
+      JWT_SECRET: your-jwt-secret-change-in-production
+      GEMINI_API_KEY: ${GEMINI_API_KEY}
+    ports:
+      - "3000:3000"
+    depends_on:
+      - postgres
+    volumes:
+      - ./uploads:/app/uploads
+    networks:
+      - aistudio-network
+
+volumes:
+  postgres_data:
+
+networks:
+  aistudio-network:
+    driver: bridge
