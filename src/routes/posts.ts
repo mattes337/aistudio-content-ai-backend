@@ -2,6 +2,7 @@ import { Router } from 'express';
 import { PostController } from '../controllers/PostController';
 import { authenticateToken } from '../middleware/auth';
 import { validatePost } from '../middleware/validation';
+import { uploadSingle } from '../utils/fileUpload';
 
 const router = Router();
 
@@ -118,6 +119,45 @@ router.get('/:postId', PostController.getPostById);
  *         description: Internal server error
  */
 router.put('/:postId', validatePost, PostController.updatePost);
+
+/**
+ * @swagger
+ * /api/posts/{postId}/preview-image:
+ *   put:
+ *     summary: Upload preview image for a post
+ *     tags: [Posts]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: postId
+ *         required: true
+ *         schema:
+ *           type: string
+ *         description: Post ID
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         multipart/form-data:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               file:
+ *                 type: string
+ *                 format: binary
+ *     responses:
+ *       200:
+ *         description: Post updated successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/Post'
+ *       404:
+ *         description: Post not found
+ *       500:
+ *         description: Internal server error
+ */
+router.put('/:postId/preview-image', authenticateToken, uploadSingle('file'), PostController.uploadPreviewImage);
 
 /**
  * @swagger

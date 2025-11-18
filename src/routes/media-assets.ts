@@ -2,6 +2,7 @@ import { Router } from 'express';
 import { MediaAssetController } from '../controllers/MediaAssetController';
 import { authenticateToken } from '../middleware/auth';
 import { validateMediaAsset } from '../middleware/validation';
+import { uploadSingle } from '../utils/fileUpload';
 
 const router = Router();
 
@@ -54,6 +55,42 @@ router.get('/', MediaAssetController.getMediaAssets);
  *         description: Internal server error
  */
 router.post('/', validateMediaAsset, MediaAssetController.createMediaAsset);
+
+/**
+ * @swagger
+ * /api/media-assets/upload:
+ *   post:
+ *     summary: Upload a media asset file
+ *     tags: [Media Assets]
+ *     security:
+ *       - bearerAuth: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         multipart/form-data:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               file:
+ *                 type: string
+ *                 format: binary
+ *               title:
+ *                 type: string
+ *               type:
+ *                 type: string
+ *     responses:
+ *       201:
+ *         description: Media asset uploaded successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/MediaAsset'
+ *       400:
+ *         description: Bad request
+ *       500:
+ *         description: Internal server error
+ */
+router.post('/upload', authenticateToken, uploadSingle('file'), MediaAssetController.uploadMediaAsset);
 
 /**
  * @swagger

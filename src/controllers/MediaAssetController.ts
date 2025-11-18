@@ -2,13 +2,21 @@ import { Request, Response } from 'express';
 import { DatabaseService } from '../services/DatabaseService';
 import { CreateMediaAssetRequest, UpdateMediaAssetRequest } from '../models/MediaAsset';
 import logger from '../utils/logger';
+import { getFileUrl } from '../utils/fileUpload';
 
 export class MediaAssetController {
   static async getMediaAssets(req: Request, res: Response) {
     try {
       const { type } = req.query;
       const assets = await DatabaseService.getMediaAssets(type as string);
-      res.json(assets);
+      
+      // Add URL to each asset
+      const assetsWithUrl = assets.map(asset => ({
+        ...asset,
+        url: getFileUrl(asset.file_path)
+      }));
+      
+      res.json(assetsWithUrl);
     } catch (error) {
       logger.error('Error fetching media assets:', error);
       res.status(500).json({ message: 'Internal server error' });
@@ -38,6 +46,41 @@ export class MediaAssetController {
       res.status(201).json(asset);
     } catch (error) {
       logger.error('Error creating media asset:', error);
+      res.status(500).json({ message: 'Internal server error' });
+    }
+  }
+
+  static async uploadMediaAsset(req: Request, res: Response) {
+    try {
+      if (!req.file) {
+        return res.status(400).json({ message: 'No file uploaded' });
+      }
+
+      const { title, type } = req.body;
+      if (!title || !type) {
+        return res.status(400).json({ message: 'Title and type are required' });
+      }
+
+      const assetData: CreateMediaAssetRequest = {
+        title,
+        type,
+        file_path: req.file.filename,
+        data: {
+          originalName: req.file.originalname,
+          mimeType: req.file.mimetype,
+          size: req.file.size
+        }
+      };
+
+      const asset = await DatabaseService.createMediaAsset(assetData);
+      const assetWithUrl = {
+        ...asset,
+        url: getFileUrl(asset.file_path)
+      };
+
+      res.status(201).json(assetWithUrl);
+    } catch (error) {
+      logger.error('Error uploading media asset:', error);
       res.status(500).json({ message: 'Internal server error' });
     }
   }

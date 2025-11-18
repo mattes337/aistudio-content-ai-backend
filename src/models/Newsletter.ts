@@ -1,38 +1,24 @@
 export interface Newsletter {
   id: string;
   subject: string;
-  content: string;
-  status: 'draft' | 'scheduled' | 'sent';
+  status: NewsletterStatus;
   publish_date?: Date;
   channel_id: string;
-  header_image_url?: string;
-  preview_text?: string;
-  sent_date?: Date;
-  recipient_count?: number;
+  data: Record<string, any>;
   created_at: Date;
   updated_at: Date;
 }
 
+export type NewsletterStatus = 'draft' | 'scheduled' | 'sent';
+
 export interface CreateNewsletterRequest {
   subject: string;
-  content: string;
-  status?: 'draft' | 'scheduled' | 'sent';
+  status?: NewsletterStatus;
   publish_date?: Date;
   channel_id: string;
-  header_image_url?: string;
-  preview_text?: string;
-  recipient_count?: number;
+  data?: Record<string, any>;
 }
 
-export interface UpdateNewsletterRequest {
+export interface UpdateNewsletterRequest extends Partial<CreateNewsletterRequest> {
   id: string;
-  subject?: string;
-  content?: string;
-  status?: 'draft' | 'scheduled' | 'sent';
-  publish_date?: Date;
-  channel_id?: string;
-  header_image_url?: string;
-  preview_text?: string;
-  sent_date?: Date;
-  recipient_count?: number;
 }

@@ -2,18 +2,13 @@ export interface KnowledgeSource {
   id: string;
   name: string;
   type: KnowledgeSourceType;
-  source: string;
   status: ProcessingStatus;
-  ingested_content?: string;
-  ingestion_log?: IngestionLogEntry[];
+  source_origin: string;
+  file_path?: string;
+  file_status: FileStatus;
+  data: Record<string, any>;
   created_at: Date;
   updated_at: Date;
-}
-
-export interface IngestionLogEntry {
-  timestamp: Date;
-  message: string;
-  level: 'info' | 'warn' | 'error';
 }
 
 export interface KnowledgeChunk {
@@ -21,7 +16,6 @@ export interface KnowledgeChunk {
   knowledge_source_id: string;
   content: string;
   embedding_status: EmbeddingStatus;
-  embedding?: number[];
   created_at: Date;
   updated_at: Date;
 }
@@ -34,11 +28,13 @@ export interface KnowledgeSourceChannel {
 export type KnowledgeSourceType = 'text' | 'website' | 'pdf' | 'instagram' | 'youtube' | 'video_file' | 'audio_file';
 export type ProcessingStatus = 'pending' | 'processed' | 'error';
 export type EmbeddingStatus = 'pending' | 'complete' | 'failed';
+export type FileStatus = 'active' | 'uploading' | 'missing' | 'deleted';
 
 export interface CreateKnowledgeSourceRequest {
   name: string;
   type: KnowledgeSourceType;
-  source: string;
+  source_origin: string;
+  data?: Record<string, any>;
 }
 
 export interface UpdateKnowledgeSourceRequest extends Partial<CreateKnowledgeSourceRequest> {

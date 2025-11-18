@@ -586,7 +586,7 @@ const options = {
         },
         CreatePostRequest: {
           type: 'object',
-          required: ['content', 'background_image_url', 'status', 'platform'],
+          required: ['content', 'status', 'platform'],
           properties: {
             content: {
               type: 'string',

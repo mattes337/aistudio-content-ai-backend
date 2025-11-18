@@ -6,65 +6,37 @@ const channelSchema = Joi.object({
   url: Joi.string().uri().max(2048).required(),
   type: Joi.string().valid('website', 'instagram', 'facebook', 'x', 'newsletter').required(),
   platformApi: Joi.string().valid('none', 'wordpress', 'instagram_graph', 'facebook_graph', 'x_api', 'email_api').required(),
-  credentials: Joi.object().optional(),
-  metadata: Joi.object().optional()
+  data: Joi.object().optional()
 });
 
 const mediaAssetSchema = Joi.object({
   title: Joi.string().min(1).max(255).required(),
-  description: Joi.string().optional(),
-  image_url: Joi.string().uri().required(),
-  type: Joi.string().valid('instagram_post', 'article_feature', 'article_inline', 'icon').required()
+  type: Joi.string().valid('instagram_post', 'article_feature', 'article_inline', 'icon').required(),
+  file_path: Joi.string().required(),
+  data: Joi.object().optional()
 });
 
 const articleSchema = Joi.object({
   title: Joi.string().min(1).required(),
-  content: Joi.string().min(1).required(),
-  title_image_url: Joi.string().uri().optional(),
-  title_image_alt: Joi.string().optional(),
-  inline_images: Joi.array().items(
-    Joi.object({
-      id: Joi.string().required(),
-      url: Joi.string().uri().required(),
-      alt: Joi.string().required()
-    })
-  ).optional(),
-  status: Joi.string().valid('draft', 'approved', 'scheduled', 'published', 'archived').required(),
+  status: Joi.string().valid('draft', 'approved', 'scheduled', 'published', 'archived').optional(),
   publish_date: Joi.date().optional(),
-  author: Joi.string().max(255).optional(),
-  excerpt: Joi.string().optional(),
-  categories: Joi.array().items(Joi.string()).optional(),
-  tags: Joi.array().items(Joi.string()).optional(),
-  seo: Joi.object({
-    title: Joi.string().required(),
-    description: Joi.string().required(),
-    keywords: Joi.string().required(),
-    slug: Joi.string().required()
-  }).optional(),
-  channel_id: Joi.string().uuid().required()
+  channel_id: Joi.string().uuid().required(),
+  data: Joi.object().optional()
 });
 
 const postSchema = Joi.object({
-  content: Joi.string().min(1).required(),
-  background_image_url: Joi.string().uri().required(),
-  base_background_image_url: Joi.string().uri().optional(),
-  overlays: Joi.array().items(Joi.object()).optional(),
-  status: Joi.string().valid('draft', 'approved', 'scheduled', 'published', 'deleted').required(),
+  status: Joi.string().valid('draft', 'approved', 'scheduled', 'published', 'deleted').optional(),
   publish_date: Joi.date().optional(),
   platform: Joi.string().max(50).required(),
-  tags: Joi.array().items(Joi.string()).optional(),
-  location: Joi.string().max(255).optional(),
-  tagged_users: Joi.array().items(Joi.string()).optional(),
-  alt_text: Joi.string().optional(),
-  disable_comments: Joi.boolean().optional(),
-  hide_likes: Joi.boolean().optional(),
-  linked_article_id: Joi.string().uuid().optional()
+  linked_article_id: Joi.string().uuid().optional(),
+  data: Joi.object().optional()
 });
 
 const knowledgeSourceSchema = Joi.object({
   name: Joi.string().min(1).max(255).required(),
   type: Joi.string().valid('text', 'website', 'pdf', 'instagram', 'youtube', 'video_file', 'audio_file').required(),
-  source: Joi.string().required()
+  source_origin: Joi.string().required(),
+  data: Joi.object().optional()
 });
 
 const generateArticleSchema = Joi.object({
@@ -96,6 +68,14 @@ const editImageSchema = Joi.object({
   mimeType: Joi.string().required()
 });
 
+const newsletterSchema = Joi.object({
+  subject: Joi.string().min(1).required(),
+  status: Joi.string().valid('draft', 'scheduled', 'sent').optional(),
+  publish_date: Joi.date().optional(),
+  channel_id: Joi.string().uuid().required(),
+  data: Joi.object().optional()
+});
+
 const generateBulkSchema = Joi.object({
   articleCount: Joi.number().integer().min(1).required(),
   postCount: Joi.number().integer().min(1).required(),
@@ -125,6 +105,7 @@ export const validateChannel = validateBody(channelSchema);
 export const validateMediaAsset = validateBody(mediaAssetSchema);
 export const validateArticle = validateBody(articleSchema);
 export const validatePost = validateBody(postSchema);
+export const validateNewsletter = validateBody(newsletterSchema);
 export const validateKnowledgeSource = validateBody(knowledgeSourceSchema);
 export const validateGenerateArticle = validateBody(generateArticleSchema);
 export const validateGenerateTitle = validateBody(generateTitleSchema);

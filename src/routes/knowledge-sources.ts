@@ -2,6 +2,7 @@ import { Router } from 'express';
 import { KnowledgeSourceController } from '../controllers/KnowledgeSourceController';
 import { authenticateToken } from '../middleware/auth';
 import { validateKnowledgeSource } from '../middleware/validation';
+import { uploadSingle } from '../utils/fileUpload';
 
 const router = Router();
 
@@ -118,6 +119,45 @@ router.get('/:sourceId', KnowledgeSourceController.getKnowledgeSourceById);
  *         description: Internal server error
  */
 router.put('/:sourceId', validateKnowledgeSource, KnowledgeSourceController.updateKnowledgeSource);
+
+/**
+ * @swagger
+ * /api/knowledge-sources/{sourceId}/file:
+ *   put:
+ *     summary: Upload a file to a knowledge source
+ *     tags: [Knowledge Sources]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: sourceId
+ *         required: true
+ *         schema:
+ *           type: string
+ *         description: Knowledge source ID
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         multipart/form-data:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               file:
+ *                 type: string
+ *                 format: binary
+ *     responses:
+ *       200:
+ *         description: Knowledge source updated successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/KnowledgeSource'
+ *       404:
+ *         description: Knowledge source not found
+ *       500:
+ *         description: Internal server error
+ */
+router.put('/:sourceId/file', authenticateToken, uploadSingle('file'), KnowledgeSourceController.uploadKnowledgeSourceFile);
 
 /**
  * @swagger
