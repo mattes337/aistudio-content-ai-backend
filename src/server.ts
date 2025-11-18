@@ -40,31 +40,48 @@ app.get('/health', (req, res) => {
   res.json({ status: 'ok', timestamp: new Date().toISOString() });
 });
 
-// Middleware to detect base URL for Swagger
-app.use((req, res, next) => {
-  const forwardedProto = req.headers['x-forwarded-proto'];
-  const forwardedHost = req.headers['x-forwarded-host'];
+// Swagger UI documentation with dynamic base URL
+app.use('/api-docs', swaggerUi.serve, (req, res, next) => {
+  // Detect reverse proxy headers
+  const forwardedProto = req.headers['x-forwarded-proto'] || req.headers['x-forwarded-protocol'];
+  const forwardedHost = req.headers['x-forwarded-host'] || req.headers['x-forwarded-server'] || req.get('host');
   
+  let baseUrl;
   if (forwardedHost && forwardedProto) {
     // We're behind a reverse proxy
-    (req as any).baseUrl = `${forwardedProto}://${forwardedHost}`;
+    baseUrl = `${forwardedProto}://${forwardedHost}`;
   } else {
     // Direct connection
-    (req as any).baseUrl = req.protocol + '://' + req.get('host');
+    baseUrl = req.protocol + '://' + req.get('host');
   }
-  next();
+  
+  // Create a copy of specs with replaced base URL
+  const specsCopy = JSON.parse(JSON.stringify(specs));
+  specsCopy.servers[0].url = baseUrl;
+  
+  // Use custom middleware to serve modified specs
+  swaggerUi.setup(specsCopy, {
+    explorer: true,
+    customCss: '.swagger-ui .topbar { display: none }',
+    customSiteTitle: 'Content AI Backend API Documentation'
+  })(req, res, next);
 });
-
-// Swagger UI documentation with dynamic base URL
-app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(specs, {
-  explorer: true,
-  customCss: '.swagger-ui .topbar { display: none }',
-  customSiteTitle: 'Content AI Backend API Documentation'
-}));
 
 // Raw OpenAPI JSON specification with dynamic base URL
 app.get('/api-docs.json', (req, res) => {
-  const baseUrl = (req as any).baseUrl || req.protocol + '://' + req.get('host');
+  // Detect reverse proxy headers
+  const forwardedProto = req.headers['x-forwarded-proto'] || req.headers['x-forwarded-protocol'];
+  const forwardedHost = req.headers['x-forwarded-host'] || req.headers['x-forwarded-server'] || req.get('host');
+  
+  let baseUrl;
+  if (forwardedHost && forwardedProto) {
+    // We're behind a reverse proxy
+    baseUrl = `${forwardedProto}://${forwardedHost}`;
+  } else {
+    // Direct connection
+    baseUrl = req.protocol + '://' + req.get('host');
+  }
+  
   let specString = JSON.stringify(specs);
   specString = specString.replace(/{request.baseUrl}/g, baseUrl);
   res.setHeader('Content-Type', 'application/json');
