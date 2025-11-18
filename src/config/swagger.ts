@@ -37,31 +37,44 @@ const options = {
           properties: {
             id: {
               type: 'string',
+              format: 'uuid',
               description: 'Channel unique identifier'
             },
             name: {
               type: 'string',
-              description: 'Channel name'
+              description: 'Channel name',
+              maxLength: 255
             },
-            description: {
+            url: {
               type: 'string',
-              description: 'Channel description'
+              format: 'uri',
+              description: 'Channel URL',
+              maxLength: 2048
             },
             type: {
               type: 'string',
-              enum: ['youtube', 'blog', 'podcast', 'social'],
+              enum: ['website', 'instagram', 'facebook', 'x', 'newsletter'],
               description: 'Channel type'
             },
-            isActive: {
-              type: 'boolean',
-              description: 'Whether the channel is active'
+            platform_api: {
+              type: 'string',
+              enum: ['none', 'wordpress', 'instagram_graph', 'facebook_graph', 'x_api', 'email_api'],
+              description: 'Platform API type'
             },
-            createdAt: {
+            credentials: {
+              type: 'object',
+              description: 'Platform API credentials'
+            },
+            metadata: {
+              type: 'object',
+              description: 'Additional channel metadata'
+            },
+            created_at: {
               type: 'string',
               format: 'date-time',
               description: 'Channel creation date'
             },
-            updatedAt: {
+            updated_at: {
               type: 'string',
               format: 'date-time',
               description: 'Channel last update date'
@@ -70,7 +83,7 @@ const options = {
         },
         CreateChannelRequest: {
           type: 'object',
-          required: ['name', 'type'],
+          required: ['name', 'url', 'type', 'platformApi'],
           properties: {
             name: {
               type: 'string',
@@ -78,20 +91,29 @@ const options = {
               minLength: 1,
               maxLength: 255
             },
-            description: {
+            url: {
               type: 'string',
-              description: 'Channel description',
-              maxLength: 1000
+              format: 'uri',
+              description: 'Channel URL',
+              maxLength: 2048
             },
             type: {
               type: 'string',
-              enum: ['youtube', 'blog', 'podcast', 'social'],
+              enum: ['website', 'instagram', 'facebook', 'x', 'newsletter'],
               description: 'Channel type'
             },
-            isActive: {
-              type: 'boolean',
-              description: 'Whether the channel is active',
-              default: true
+            platformApi: {
+              type: 'string',
+              enum: ['none', 'wordpress', 'instagram_graph', 'facebook_graph', 'x_api', 'email_api'],
+              description: 'Platform API type'
+            },
+            credentials: {
+              type: 'object',
+              description: 'Platform API credentials'
+            },
+            metadata: {
+              type: 'object',
+              description: 'Additional channel metadata'
             }
           }
         },
@@ -104,19 +126,29 @@ const options = {
               minLength: 1,
               maxLength: 255
             },
-            description: {
+            url: {
               type: 'string',
-              description: 'Channel description',
-              maxLength: 1000
+              format: 'uri',
+              description: 'Channel URL',
+              maxLength: 2048
             },
             type: {
               type: 'string',
-              enum: ['youtube', 'blog', 'podcast', 'social'],
+              enum: ['website', 'instagram', 'facebook', 'x', 'newsletter'],
               description: 'Channel type'
             },
-            isActive: {
-              type: 'boolean',
-              description: 'Whether the channel is active'
+            platformApi: {
+              type: 'string',
+              enum: ['none', 'wordpress', 'instagram_graph', 'facebook_graph', 'x_api', 'email_api'],
+              description: 'Platform API type'
+            },
+            credentials: {
+              type: 'object',
+              description: 'Platform API credentials'
+            },
+            metadata: {
+              type: 'object',
+              description: 'Additional channel metadata'
             }
           }
         },

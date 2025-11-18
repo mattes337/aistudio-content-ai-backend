@@ -10,8 +10,8 @@ export interface Channel {
   updated_at: Date;
 }
 
-export type ChannelType = 'website' | 'instagram' | 'facebook' | 'x';
-export type PlatformApi = 'none' | 'wordpress' | 'instagram_graph' | 'facebook_graph' | 'x_api';
+export type ChannelType = 'website' | 'instagram' | 'facebook' | 'x' | 'newsletter';
+export type PlatformApi = 'none' | 'wordpress' | 'instagram_graph' | 'facebook_graph' | 'x_api' | 'email_api';
 
 export interface CreateChannelRequest {
   name: string;

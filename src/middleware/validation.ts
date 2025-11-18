@@ -4,8 +4,8 @@ import Joi from 'joi';
 const channelSchema = Joi.object({
   name: Joi.string().min(1).max(255).required(),
   url: Joi.string().uri().max(2048).required(),
-  type: Joi.string().valid('website', 'instagram', 'facebook', 'x').required(),
-  platformApi: Joi.string().valid('none', 'wordpress', 'instagram_graph', 'facebook_graph', 'x_api').required(),
+  type: Joi.string().valid('website', 'instagram', 'facebook', 'x', 'newsletter').required(),
+  platformApi: Joi.string().valid('none', 'wordpress', 'instagram_graph', 'facebook_graph', 'x_api', 'email_api').required(),
   credentials: Joi.object().optional(),
   metadata: Joi.object().optional()
 });
