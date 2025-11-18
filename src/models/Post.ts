@@ -19,12 +19,6 @@ export interface Post {
 }
 
 export interface Overlay {
-  id: string;
-  type: string;
-  x: number;
-  y: number;
-  width: number;
-  height: number;
   [key: string]: any;
 }
 

@@ -48,16 +48,7 @@ const postSchema = Joi.object({
   content: Joi.string().min(1).required(),
   background_image_url: Joi.string().uri().required(),
   base_background_image_url: Joi.string().uri().optional(),
-  overlays: Joi.array().items(
-    Joi.object({
-      id: Joi.string().required(),
-      type: Joi.string().required(),
-      x: Joi.number().required(),
-      y: Joi.number().required(),
-      width: Joi.number().required(),
-      height: Joi.number().required()
-    })
-  ).optional(),
+  overlays: Joi.array().items(Joi.object()).optional(),
   status: Joi.string().valid('draft', 'approved', 'scheduled', 'published', 'deleted').required(),
   publish_date: Joi.date().optional(),
   platform: Joi.string().max(50).required(),

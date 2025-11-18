@@ -581,32 +581,8 @@ const options = {
         },
         Overlay: {
           type: 'object',
-          properties: {
-            id: {
-              type: 'string',
-              description: 'Overlay ID'
-            },
-            type: {
-              type: 'string',
-              description: 'Overlay type'
-            },
-            x: {
-              type: 'number',
-              description: 'X position'
-            },
-            y: {
-              type: 'number',
-              description: 'Y position'
-            },
-            width: {
-              type: 'number',
-              description: 'Overlay width'
-            },
-            height: {
-              type: 'number',
-              description: 'Overlay height'
-            }
-          }
+          description: 'Flexible overlay object - any JSON structure is accepted',
+          additionalProperties: true
         },
         CreatePostRequest: {
           type: 'object',
