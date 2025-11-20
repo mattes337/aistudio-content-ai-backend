@@ -90,7 +90,7 @@ export class PostController {
 
       const { postId } = req.params;
       const post = await DatabaseService.getPostById(postId);
-      
+
       if (!post) {
         return res.status(404).json({ message: 'Post not found' });
       }
@@ -109,7 +109,7 @@ export class PostController {
       };
 
       const updatedPost = await DatabaseService.updatePost(updateData);
-      
+
       if (!updatedPost) {
         return res.status(500).json({ message: 'Failed to update post' });
       }

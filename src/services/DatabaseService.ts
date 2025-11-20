@@ -12,6 +12,15 @@ import {
 } from '../models/KnowledgeSource';
 import { CreateRecipientRequest, UpdateRecipientRequest } from '../models/Recipient';
 import { CreateNewsletterRequest, UpdateNewsletterRequest } from '../models/Newsletter';
+import { 
+  ChatSession, 
+  ChatMessage, 
+  ChatSessionWithMessages,
+  CreateChatSessionRequest, 
+  UpdateChatSessionRequest,
+  CreateChatMessageRequest,
+  ChatSessionChannel
+} from '../models/Chat';
 
 export class DatabaseService {
   // Channel operations
@@ -178,30 +187,22 @@ export class DatabaseService {
 
   // Article operations
   static async createArticle(articleData: CreateArticleRequest): Promise<Article> {
+    // Auto-set status to draft if publish_date is not provided
+    const status = articleData.publish_date ? articleData.status || 'draft' : 'draft';
+
     const query = `
-      INSERT INTO articles (
-        title, content, title_image_url, title_image_alt, inline_images,
-        status, publish_date, author, excerpt, categories, tags, seo, channel_id
-      )
-      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)
+      INSERT INTO articles (title, status, publish_date, channel_id, data)
+      VALUES ($1, $2, $3, $4, $5)
       RETURNING *
     `;
     const values = [
       articleData.title,
-      articleData.content,
-      articleData.title_image_url || null,
-      articleData.title_image_alt || null,
-      JSON.stringify(articleData.inline_images || []),
-      articleData.status,
+      status,
       articleData.publish_date || null,
-      articleData.author || null,
-      articleData.excerpt || null,
-      articleData.categories || [],
-      articleData.tags || [],
-      JSON.stringify(articleData.seo || {}),
-      articleData.channel_id
+      articleData.channel_id,
+      JSON.stringify(articleData.data || {})
     ];
-    
+
     const result = await pool.query(query, values);
     return result.rows[0];
   }
@@ -241,24 +242,34 @@ export class DatabaseService {
     const values: any[] = [];
     let paramCount = 1;
 
-    const updateFields = [
-      'title', 'content', 'title_image_url', 'title_image_alt', 'inline_images',
-      'status', 'publish_date', 'author', 'excerpt', 'categories', 'tags', 'seo', 'channel_id'
-    ];
+    // Auto-set status to draft if publish_date is being set to null
+    if (articleData.publish_date !== undefined) {
+      const status = articleData.publish_date ? articleData.status : 'draft';
+      setParts.push(`status = $${paramCount++}`);
+      values.push(status);
+      setParts.push(`publish_date = $${paramCount++}`);
+      values.push(articleData.publish_date);
+    }
 
-    updateFields.forEach(field => {
-      const value = (articleData as any)[field];
-      if (value !== undefined) {
-        setParts.push(`${field} = $${paramCount++}`);
-        if (field === 'inline_images' || field === 'seo') {
-          values.push(JSON.stringify(value));
-        } else if (field === 'categories' || field === 'tags') {
-          values.push(value);
-        } else {
-          values.push(value || null);
-        }
-      }
-    });
+    if (articleData.title !== undefined) {
+      setParts.push(`title = $${paramCount++}`);
+      values.push(articleData.title);
+    }
+
+    if (articleData.status !== undefined && articleData.publish_date === undefined) {
+      setParts.push(`status = $${paramCount++}`);
+      values.push(articleData.status);
+    }
+
+    if (articleData.channel_id !== undefined) {
+      setParts.push(`channel_id = $${paramCount++}`);
+      values.push(articleData.channel_id);
+    }
+
+    if (articleData.data !== undefined) {
+      setParts.push(`data = $${paramCount++}`);
+      values.push(JSON.stringify(articleData.data));
+    }
 
     setParts.push(`updated_at = $${paramCount++}`);
     values.push(new Date());
@@ -266,7 +277,7 @@ export class DatabaseService {
     values.push(articleData.id);
 
     const query = `
-      UPDATE articles 
+      UPDATE articles
       SET ${setParts.join(', ')}
       WHERE id = $${paramCount}
       RETURNING *
@@ -283,32 +294,24 @@ export class DatabaseService {
 
   // Post operations
   static async createPost(postData: CreatePostRequest): Promise<Post> {
+    // Auto-set status to draft if publish_date is not provided
+    const status = postData.publish_date ? postData.status || 'draft' : 'draft';
+
     const query = `
-      INSERT INTO posts (
-        content, background_image_url, base_background_image_url, overlays,
-        status, publish_date, platform, tags, location, tagged_users, alt_text,
-        disable_comments, hide_likes, linked_article_id
-      )
-      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14)
+      INSERT INTO posts (status, publish_date, platform, linked_article_id, data, preview_file_path, file_status)
+      VALUES ($1, $2, $3, $4, $5, $6, $7)
       RETURNING *
     `;
     const values = [
-      postData.content,
-      postData.background_image_url,
-      postData.base_background_image_url || null,
-      JSON.stringify(postData.overlays || []),
-      postData.status,
+      status,
       postData.publish_date || null,
       postData.platform,
-      postData.tags || [],
-      postData.location || null,
-      postData.tagged_users || [],
-      postData.alt_text || null,
-      postData.disable_comments || false,
-      postData.hide_likes || false,
-      postData.linked_article_id || null
+      postData.linked_article_id || null,
+      JSON.stringify(postData.data || {}),
+      postData.preview_file_path || null,
+      postData.file_status || 'active'
     ];
-    
+
     const result = await pool.query(query, values);
     return result.rows[0];
   }
@@ -348,27 +351,44 @@ export class DatabaseService {
     const values: any[] = [];
     let paramCount = 1;
 
-    const updateFields = [
-      'content', 'background_image_url', 'base_background_image_url', 'overlays',
-      'status', 'publish_date', 'platform', 'tags', 'location', 'tagged_users', 'alt_text',
-      'disable_comments', 'hide_likes', 'linked_article_id'
-    ];
+    // Auto-set status to draft if publish_date is being set to null
+    if (postData.publish_date !== undefined) {
+      const status = postData.publish_date ? postData.status : 'draft';
+      setParts.push(`status = $${paramCount++}`);
+      values.push(status);
+      setParts.push(`publish_date = $${paramCount++}`);
+      values.push(postData.publish_date);
+    }
 
-    updateFields.forEach(field => {
-      const value = (postData as any)[field];
-      if (value !== undefined) {
-        setParts.push(`${field} = $${paramCount++}`);
-        if (field === 'overlays') {
-          values.push(JSON.stringify(value));
-        } else if (field === 'tags' || field === 'tagged_users') {
-          values.push(value);
-        } else if (typeof value === 'boolean') {
-          values.push(value);
-        } else {
-          values.push(value || null);
-        }
-      }
-    });
+    if (postData.platform !== undefined) {
+      setParts.push(`platform = $${paramCount++}`);
+      values.push(postData.platform);
+    }
+
+    if (postData.linked_article_id !== undefined) {
+      setParts.push(`linked_article_id = $${paramCount++}`);
+      values.push(postData.linked_article_id);
+    }
+
+    if (postData.data !== undefined) {
+      setParts.push(`data = $${paramCount++}`);
+      values.push(JSON.stringify(postData.data));
+    }
+
+    if (postData.preview_file_path !== undefined) {
+      setParts.push(`preview_file_path = $${paramCount++}`);
+      values.push(postData.preview_file_path);
+    }
+
+    if (postData.file_status !== undefined) {
+      setParts.push(`file_status = $${paramCount++}`);
+      values.push(postData.file_status);
+    }
+
+    if (postData.status !== undefined && postData.publish_date === undefined) {
+      setParts.push(`status = $${paramCount++}`);
+      values.push(postData.status);
+    }
 
     setParts.push(`updated_at = $${paramCount++}`);
     values.push(new Date());
@@ -376,7 +396,7 @@ export class DatabaseService {
     values.push(postData.id);
 
     const query = `
-      UPDATE posts 
+      UPDATE posts
       SET ${setParts.join(', ')}
       WHERE id = $${paramCount}
       RETURNING *
@@ -572,22 +592,22 @@ export class DatabaseService {
 
   // Newsletter operations
   static async createNewsletter(newsletterData: CreateNewsletterRequest): Promise<any> {
+    // Auto-set status to draft if publish_date is not provided
+    const status = newsletterData.publish_date ? newsletterData.status || 'draft' : 'draft';
+
     const query = `
-      INSERT INTO newsletters (subject, content, status, publish_date, channel_id, header_image_url, preview_text, recipient_count)
-      VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+      INSERT INTO newsletters (subject, status, publish_date, channel_id, data)
+      VALUES ($1, $2, $3, $4, $5)
       RETURNING *
     `;
     const values = [
       newsletterData.subject,
-      newsletterData.content,
-      newsletterData.status || 'draft',
-      newsletterData.publish_date,
+      status,
+      newsletterData.publish_date || null,
       newsletterData.channel_id,
-      newsletterData.header_image_url,
-      newsletterData.preview_text,
-      newsletterData.recipient_count
+      JSON.stringify(newsletterData.data || {})
     ];
-    
+
     const result = await pool.query(query, values);
     return result.rows[0];
   }
@@ -607,48 +627,40 @@ export class DatabaseService {
     const values: any[] = [];
     let paramCount = 1;
 
+    // Auto-set status to draft if publish_date is being set to null
+    if (newsletterData.publish_date !== undefined) {
+      const status = newsletterData.publish_date ? newsletterData.status : 'draft';
+      setParts.push(`status = $${paramCount++}`);
+      values.push(status);
+      setParts.push(`publish_date = $${paramCount++}`);
+      values.push(newsletterData.publish_date);
+    }
+
     if (newsletterData.subject !== undefined) {
       setParts.push(`subject = $${paramCount++}`);
       values.push(newsletterData.subject);
     }
-    if (newsletterData.content !== undefined) {
-      setParts.push(`content = $${paramCount++}`);
-      values.push(newsletterData.content);
-    }
-    if (newsletterData.status !== undefined) {
+
+    if (newsletterData.status !== undefined && newsletterData.publish_date === undefined) {
       setParts.push(`status = $${paramCount++}`);
       values.push(newsletterData.status);
     }
-    if (newsletterData.publish_date !== undefined) {
-      setParts.push(`publish_date = $${paramCount++}`);
-      values.push(newsletterData.publish_date);
-    }
+
     if (newsletterData.channel_id !== undefined) {
       setParts.push(`channel_id = $${paramCount++}`);
       values.push(newsletterData.channel_id);
     }
-    if (newsletterData.header_image_url !== undefined) {
-      setParts.push(`header_image_url = $${paramCount++}`);
-      values.push(newsletterData.header_image_url);
-    }
-    if (newsletterData.preview_text !== undefined) {
-      setParts.push(`preview_text = $${paramCount++}`);
-      values.push(newsletterData.preview_text);
-    }
-    if (newsletterData.sent_date !== undefined) {
-      setParts.push(`sent_date = $${paramCount++}`);
-      values.push(newsletterData.sent_date);
-    }
-    if (newsletterData.recipient_count !== undefined) {
-      setParts.push(`recipient_count = $${paramCount++}`);
-      values.push(newsletterData.recipient_count);
+
+    if (newsletterData.data !== undefined) {
+      setParts.push(`data = $${paramCount++}`);
+      values.push(JSON.stringify(newsletterData.data));
     }
 
     setParts.push(`updated_at = NOW()`);
     values.push(newsletterData.id);
 
     const query = `
-      UPDATE newsletters 
+      UPDATE newsletters
       SET ${setParts.join(', ')}
       WHERE id = $${paramCount}
       RETURNING *
@@ -661,5 +673,226 @@ export class DatabaseService {
   static async deleteNewsletter(id: string): Promise<boolean> {
     const result = await pool.query('DELETE FROM newsletters WHERE id = $1', [id]);
     return result.rowCount > 0;
+  }
+
+  // Chat Session operations
+  static async createChatSession(sessionData: CreateChatSessionRequest): Promise<ChatSession> {
+    const query = `
+      INSERT INTO chat_sessions (title)
+      VALUES ($1)
+      RETURNING *
+    `;
+    const values = [sessionData.title || 'New Chat Session'];
+    
+    const result = await pool.query(query, values);
+    const session = result.rows[0];
+
+    // Add channel associations if provided
+    if (sessionData.channel_ids && sessionData.channel_ids.length > 0) {
+      await this.addChannelsToSession(session.id, sessionData.channel_ids);
+    }
+
+    return session;
+  }
+
+  static async getChatSessions(): Promise<ChatSession[]> {
+    const query = `
+      SELECT cs.*, 
+             COUNT(cm.id) as message_count,
+             c.name as channel_names
+      FROM chat_sessions cs
+      LEFT JOIN chat_messages cm ON cs.id = cm.session_id
+      LEFT JOIN chat_session_channels csc ON cs.id = csc.session_id
+      LEFT JOIN channels c ON csc.channel_id = c.id
+      GROUP BY cs.id
+      ORDER BY cs.updated_at DESC
+    `;
+    
+    const result = await pool.query(query);
+    return result.rows;
+  }
+
+  static async getChatSessionById(id: string): Promise<ChatSessionWithMessages | null> {
+    // Get session details
+    const sessionQuery = 'SELECT * FROM chat_sessions WHERE id = $1';
+    const sessionResult = await pool.query(sessionQuery, [id]);
+    
+    if (!sessionResult.rows[0]) {
+      return null;
+    }
+
+    const session = sessionResult.rows[0];
+
+    // Get messages for this session
+    const messagesQuery = `
+      SELECT * FROM chat_messages 
+      WHERE session_id = $1 
+      ORDER BY created_at ASC
+    `;
+    const messagesResult = await pool.query(messagesQuery, [id]);
+
+    // Get associated channels
+    const channelsQuery = `
+      SELECT c.id, c.name, c.type
+      FROM chat_session_channels csc
+      JOIN channels c ON csc.channel_id = c.id
+      WHERE csc.session_id = $1
+    `;
+    const channelsResult = await pool.query(channelsQuery, [id]);
+
+    return {
+      ...session,
+      messages: messagesResult.rows,
+      channels: channelsResult.rows.map(ch => ch.id)
+    };
+  }
+
+  static async updateChatSession(sessionData: UpdateChatSessionRequest): Promise<ChatSession | null> {
+    const setParts: string[] = [];
+    const values: any[] = [];
+    let paramCount = 1;
+
+    if (sessionData.title !== undefined) {
+      setParts.push(`title = $${paramCount++}`);
+      values.push(sessionData.title);
+    }
+
+    setParts.push(`updated_at = $${paramCount++}`);
+    values.push(new Date());
+
+    values.push(sessionData.id);
+
+    const query = `
+      UPDATE chat_sessions 
+      SET ${setParts.join(', ')}
+      WHERE id = $${paramCount}
+      RETURNING *
+    `;
+
+    const result = await pool.query(query, values);
+    const session = result.rows[0] || null;
+
+    // Update channel associations if provided
+    if (session && sessionData.channel_ids !== undefined) {
+      await this.updateSessionChannels(session.id, sessionData.channel_ids);
+    }
+
+    return session;
+  }
+
+  static async deleteChatSession(id: string): Promise<boolean> {
+    const result = await pool.query('DELETE FROM chat_sessions WHERE id = $1', [id]);
+    return result.rowCount > 0;
+  }
+
+  // Chat Message operations
+  static async createChatMessage(messageData: CreateChatMessageRequest): Promise<ChatMessage> {
+    const query = `
+      INSERT INTO chat_messages (session_id, role, content)
+      VALUES ($1, $2, $3)
+      RETURNING *
+    `;
+    
+    const values = [
+      messageData.session_id,
+      messageData.role,
+      messageData.content
+    ];
+    
+    const result = await pool.query(query, values);
+    
+    // Update the session's updated_at timestamp
+    await pool.query(
+      'UPDATE chat_sessions SET updated_at = NOW() WHERE id = $1',
+      [messageData.session_id]
+    );
+    
+    return result.rows[0];
+  }
+
+  static async getChatMessages(sessionId: string): Promise<ChatMessage[]> {
+    const query = `
+      SELECT * FROM chat_messages 
+      WHERE session_id = $1 
+      ORDER BY created_at ASC
+    `;
+    
+    const result = await pool.query(query, [sessionId]);
+    return result.rows;
+  }
+
+  // Chat Session Channels operations
+  static async addChannelsToSession(sessionId: string, channelIds: string[]): Promise<void> {
+    if (channelIds.length === 0) return;
+
+    const values = channelIds.map((channelId, index) => 
+      `($1, $${index + 2})`
+    ).join(', ');
+
+    const query = `
+      INSERT INTO chat_session_channels (session_id, channel_id)
+      VALUES ${values}
+      ON CONFLICT DO NOTHING
+    `;
+
+    await pool.query(query, [sessionId, ...channelIds]);
+  }
+
+  static async removeChannelsFromSession(sessionId: string, channelIds: string[]): Promise<void> {
+    if (channelIds.length === 0) return;
+
+    const query = `
+      DELETE FROM chat_session_channels 
+      WHERE session_id = $1 AND channel_id = ANY($2)
+    `;
+
+    await pool.query(query, [sessionId, channelIds]);
+  }
+
+  static async updateSessionChannels(sessionId: string, channelIds: string[]): Promise<void> {
+    // Remove all existing associations
+    await pool.query(
+      'DELETE FROM chat_session_channels WHERE session_id = $1',
+      [sessionId]
+    );
+
+    // Add new associations
+    await this.addChannelsToSession(sessionId, channelIds);
+  }
+
+  static async getSessionChannels(sessionId: string): Promise<string[]> {
+    const query = `
+      SELECT channel_id FROM chat_session_channels 
+      WHERE session_id = $1
+    `;
+    
+    const result = await pool.query(query, [sessionId]);
+    return result.rows.map(row => row.channel_id);
+  }
+
+  // Simulated AI response endpoint
+  static async generateSimulatedResponse(prompt: string, context?: string): Promise<string> {
+    // Simple simulated responses based on common patterns
+    const responses = [
+      `Based on your question about "${prompt}", I can provide you with some insights. This is a simulated response that would normally use AI to analyze your content and provide relevant information.`,
+      `That's an interesting question about "${prompt}". In a real implementation, I would search through your knowledge bases and provide a comprehensive answer based on your available content.`,
+      `Regarding "${prompt}", I understand you're looking for assistance. This simulated response demonstrates how the chat system would work with actual AI integration.`,
+      `I see you're asking about "${prompt}". Let me help you with that. This is a mock response showing the chat functionality in action.`
+    ];
+
+    // Add some context awareness if available
+    if (context) {
+      responses.push(
+        `Based on the context from your channels and knowledge sources, regarding "${prompt}": ${context}. This is a simulated response that would normally incorporate your actual data.`
+      );
+    }
+
+    // Randomly select a response
+    const randomIndex = Math.floor(Math.random() * responses.length);
+    
+    // Simulate processing delay
+    await new Promise(resolve => setTimeout(resolve, 500));
+    
+    return responses[randomIndex];
   }
 }
