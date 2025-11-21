@@ -17,6 +17,7 @@ import knowledgeSourcesRouter from './routes/knowledge-sources';
 import recipientsRouter from './routes/recipients';
 import newslettersRouter from './routes/newsletters';
 import aiRouter from './routes/ai';
+import chatRouter from './routes/chat';
 import { serveUploadedFile } from './middleware/fileServing';
 
 const config = loadEnvConfig();
@@ -98,6 +99,7 @@ app.use('/api/knowledge-sources', knowledgeSourcesRouter);
 app.use('/api/recipients', recipientsRouter);
 app.use('/api/newsletters', newslettersRouter);
 app.use('/api/ai', aiRouter);
+app.use('/api/chat', chatRouter);
 
 // File serving for uploaded files
 app.use('/api/files/:filename', serveUploadedFile);
