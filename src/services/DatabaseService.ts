@@ -97,10 +97,30 @@ export class DatabaseService {
     };
   }
 
+  static async getRawChannelById(id: string): Promise<any | null> {
+    const query = 'SELECT * FROM channels WHERE id = $1';
+    const result = await pool.query(query, [id]);
+
+    if (result.rows.length === 0) return null;
+
+    return result.rows[0];
+  }
+
   static async updateChannel(channelData: UpdateChannelRequest): Promise<Channel | null> {
-    // First get the current channel to merge with new data
-    const currentChannel = await this.getChannelById(channelData.id);
-    if (!currentChannel) return null;
+    // First get the current channel raw data to check for malformed JSON
+    const currentRawChannel = await this.getRawChannelById(channelData.id);
+    if (!currentRawChannel) return null;
+
+    // Parse current data safely, treating malformed JSON as empty
+    let currentParsedData = {};
+    if (currentRawChannel.data) {
+      try {
+        currentParsedData = JSON.parse(currentRawChannel.data);
+      } catch (error) {
+        console.warn(`Malformed JSON data found in database for channel ${channelData.id}, treating as empty object. Data: "${currentRawChannel.data}"`);
+        currentParsedData = {};
+      }
+    }
 
     const setParts: string[] = [];
     const values: any[] = [];
@@ -128,11 +148,11 @@ export class DatabaseService {
       const combinedData: any = {};
 
       // Add existing credentials and data if they exist
-      if (currentChannel.credentials) {
-        combinedData.credentials = currentChannel.credentials;
+      if (currentParsedData.credentials) {
+        combinedData.credentials = currentParsedData.credentials;
       }
-      if (currentChannel.data) {
-        combinedData.data = currentChannel.data;
+      if (currentParsedData.data) {
+        combinedData.data = currentParsedData.data;
       }
 
       // Add new credentials and data if they exist
