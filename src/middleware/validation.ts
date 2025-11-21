@@ -10,33 +10,33 @@ const websiteCredentialsSchema = Joi.object({
 });
 
 const instagramCredentialsSchema = Joi.object({
-  accessToken: Joi.string().required(),
+  accessToken: Joi.string().optional(),
   userId: Joi.string().optional(),
   appId: Joi.string().optional(),
   appSecret: Joi.string().optional()
 });
 
 const facebookCredentialsSchema = Joi.object({
-  accessToken: Joi.string().required(),
+  accessToken: Joi.string().optional(),
   pageId: Joi.string().optional(),
   appId: Joi.string().optional(),
   appSecret: Joi.string().optional()
 });
 
 const xCredentialsSchema = Joi.object({
-  apiKey: Joi.string().required(),
-  apiSecret: Joi.string().required(),
-  accessToken: Joi.string().required(),
-  accessTokenSecret: Joi.string().required(),
+  apiKey: Joi.string().optional(),
+  apiSecret: Joi.string().optional(),
+  accessToken: Joi.string().optional(),
+  accessTokenSecret: Joi.string().optional(),
   bearerToken: Joi.string().optional()
 });
 
 const newsletterCredentialsSchema = Joi.object({
   smtpHost: Joi.string().required(),
-  smtpPort: Joi.number().integer().min(1).max(65535).required(),
-  smtpUser: Joi.string().required(),
-  smtpPassword: Joi.string().required(),
-  senderEmail: Joi.string().email().required(),
+  smtpPort: Joi.number().integer().min(1).max(65535).optional(),
+  smtpUser: Joi.string().optional(),
+  smtpPassword: Joi.string().optional(),
+  senderEmail: Joi.string().email().optional(),
   apiKey: Joi.string().optional()
 });
 
@@ -50,16 +50,16 @@ const channelSchema = Joi.object({
     then: websiteCredentialsSchema.optional(),
     otherwise: Joi.when('type', {
       is: 'instagram',
-      then: instagramCredentialsSchema.required(),
+      then: instagramCredentialsSchema.optional(),
       otherwise: Joi.when('type', {
         is: 'facebook',
-        then: facebookCredentialsSchema.required(),
+        then: facebookCredentialsSchema.optional(),
         otherwise: Joi.when('type', {
           is: 'x',
-          then: xCredentialsSchema.required(),
+          then: xCredentialsSchema.optional(),
           otherwise: Joi.when('type', {
             is: 'newsletter',
-            then: newsletterCredentialsSchema.required(),
+            then: newsletterCredentialsSchema.optional(),
             otherwise: Joi.object().optional()
           })
         })
