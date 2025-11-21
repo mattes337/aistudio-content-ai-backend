@@ -1,7 +1,7 @@
 import { Router } from 'express';
 import { ArticleController } from '../controllers/ArticleController';
 import { authenticateToken } from '../middleware/auth';
-import { validateArticle } from '../middleware/validation';
+import { validateArticleLenient } from '../middleware/validation';
 
 const router = Router();
 
@@ -53,7 +53,7 @@ router.get('/', ArticleController.getArticles);
  *       500:
  *         description: Internal server error
  */
-router.post('/', validateArticle, ArticleController.createArticle);
+router.post('/', validateArticleLenient, ArticleController.createArticle);
 
 /**
  * @swagger
@@ -117,7 +117,7 @@ router.get('/:articleId', ArticleController.getArticleById);
  *       500:
  *         description: Internal server error
  */
-router.put('/:articleId', validateArticle, ArticleController.updateArticle);
+router.put('/:articleId', validateArticleLenient, ArticleController.updateArticle);
 
 /**
  * @swagger

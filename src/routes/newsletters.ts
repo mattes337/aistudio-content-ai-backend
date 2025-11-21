@@ -1,6 +1,7 @@
 import { Router } from 'express';
 import { NewsletterController } from '../controllers/NewsletterController';
 import { authenticateToken } from '../middleware/auth';
+import { validateNewsletterLenient } from '../middleware/validation';
 
 const router = Router();
 
@@ -53,7 +54,7 @@ router.get('/', NewsletterController.getNewsletters);
  *       500:
  *         description: Internal server error
  */
-router.post('/', NewsletterController.createNewsletter);
+router.post('/', validateNewsletterLenient, NewsletterController.createNewsletter);
 
 /**
  * @swagger
@@ -117,7 +118,7 @@ router.get('/:newsletterId', NewsletterController.getNewsletterById);
  *       500:
  *         description: Internal server error
  */
-router.put('/:newsletterId', NewsletterController.updateNewsletter);
+router.put('/:newsletterId', validateNewsletterLenient, NewsletterController.updateNewsletter);
 
 /**
  * @swagger

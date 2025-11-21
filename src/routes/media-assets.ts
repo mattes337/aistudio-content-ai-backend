@@ -1,7 +1,7 @@
 import { Router } from 'express';
 import { MediaAssetController } from '../controllers/MediaAssetController';
 import { authenticateToken } from '../middleware/auth';
-import { validateMediaAsset } from '../middleware/validation';
+import { validateMediaAssetLenient } from '../middleware/validation';
 import { uploadSingle } from '../utils/fileUpload';
 
 const router = Router();
@@ -54,7 +54,7 @@ router.get('/', MediaAssetController.getMediaAssets);
  *       500:
  *         description: Internal server error
  */
-router.post('/', validateMediaAsset, MediaAssetController.createMediaAsset);
+router.post('/', validateMediaAssetLenient, MediaAssetController.createMediaAsset);
 
 /**
  * @swagger
@@ -154,7 +154,7 @@ router.get('/:assetId', MediaAssetController.getMediaAssetById);
  *       500:
  *         description: Internal server error
  */
-router.put('/:assetId', validateMediaAsset, MediaAssetController.updateMediaAsset);
+router.put('/:assetId', validateMediaAssetLenient, MediaAssetController.updateMediaAsset);
 
 /**
  * @swagger

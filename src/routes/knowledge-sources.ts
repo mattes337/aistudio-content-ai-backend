@@ -1,7 +1,7 @@
 import { Router } from 'express';
 import { KnowledgeSourceController } from '../controllers/KnowledgeSourceController';
 import { authenticateToken } from '../middleware/auth';
-import { validateKnowledgeSource } from '../middleware/validation';
+import { validateKnowledgeSourceLenient } from '../middleware/validation';
 import { uploadSingle } from '../utils/fileUpload';
 
 const router = Router();
@@ -54,7 +54,7 @@ router.get('/', KnowledgeSourceController.getKnowledgeSources);
  *       500:
  *         description: Internal server error
  */
-router.post('/', validateKnowledgeSource, KnowledgeSourceController.createKnowledgeSource);
+router.post('/', validateKnowledgeSourceLenient, KnowledgeSourceController.createKnowledgeSource);
 
 /**
  * @swagger
@@ -118,7 +118,7 @@ router.get('/:sourceId', KnowledgeSourceController.getKnowledgeSourceById);
  *       500:
  *         description: Internal server error
  */
-router.put('/:sourceId', validateKnowledgeSource, KnowledgeSourceController.updateKnowledgeSource);
+router.put('/:sourceId', validateKnowledgeSourceLenient, KnowledgeSourceController.updateKnowledgeSource);
 
 /**
  * @swagger

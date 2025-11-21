@@ -1,7 +1,7 @@
 import { Router } from 'express';
 import { ChannelController } from '../controllers/ChannelController';
 import { authenticateToken } from '../middleware/auth';
-import { validateChannel } from '../middleware/validation';
+import { validateChannelLenient } from '../middleware/validation';
 
 const router = Router();
 
@@ -54,7 +54,7 @@ router.get('/', ChannelController.getChannels);
  *       500:
  *         description: Internal server error
  */
-router.post('/', validateChannel, ChannelController.createChannel);
+router.post('/', validateChannelLenient, ChannelController.createChannel);
 
 /**
  * @swagger
@@ -118,7 +118,7 @@ router.get('/:channelId', ChannelController.getChannelById);
  *       500:
  *         description: Internal server error
  */
-router.put('/:channelId', validateChannel, ChannelController.updateChannel);
+router.put('/:channelId', validateChannelLenient, ChannelController.updateChannel);
 
 /**
  * @swagger

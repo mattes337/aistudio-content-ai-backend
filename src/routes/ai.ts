@@ -2,14 +2,14 @@ import { Router } from 'express';
 import { AIController } from '../controllers/AIController';
 import { authenticateToken } from '../middleware/auth';
 import {
-  validateGenerateArticle,
-  validateGenerateTitle,
-  validateGenerateMetadata,
-  validateGeneratePostDetails,
-  validateGenerateImage,
-  validateEditImage,
-  validateGenerateBulk,
-  validateSearchKnowledge
+  validateGenerateArticleLenient,
+  validateGenerateTitleLenient,
+  validateGenerateMetadataLenient,
+  validateGeneratePostDetailsLenient,
+  validateGenerateImageLenient,
+  validateEditImageLenient,
+  validateGenerateBulkLenient,
+  validateSearchKnowledgeLenient
 } from '../middleware/validation';
 
 const router = Router();
@@ -54,7 +54,7 @@ router.use(authenticateToken);
  *       500:
  *         description: Internal server error
  */
-router.post('/generate/article', validateGenerateArticle, AIController.generateArticle);
+router.post('/generate/article', validateGenerateArticleLenient, AIController.generateArticle);
 
 /**
  * @swagger
@@ -94,7 +94,7 @@ router.post('/generate/article', validateGenerateArticle, AIController.generateA
  *       500:
  *         description: Internal server error
  */
-router.post('/generate/article-title', validateGenerateTitle, AIController.generateArticleTitle);
+router.post('/generate/article-title', validateGenerateTitleLenient, AIController.generateArticleTitle);
 
 /**
  * @swagger
@@ -128,7 +128,7 @@ router.post('/generate/article-title', validateGenerateTitle, AIController.gener
  *       500:
  *         description: Internal server error
  */
-router.post('/generate/article-metadata', validateGenerateMetadata, AIController.generateArticleMetadata);
+router.post('/generate/article-metadata', validateGenerateMetadataLenient, AIController.generateArticleMetadata);
 
 /**
  * @swagger
@@ -166,7 +166,7 @@ router.post('/generate/article-metadata', validateGenerateMetadata, AIController
  *       500:
  *         description: Internal server error
  */
-router.post('/generate/post-details', validateGeneratePostDetails, AIController.generatePostDetails);
+router.post('/generate/post-details', validateGeneratePostDetailsLenient, AIController.generatePostDetails);
 
 /**
  * @swagger
@@ -211,7 +211,7 @@ router.post('/generate/post-details', validateGeneratePostDetails, AIController.
  *       500:
  *         description: Internal server error
  */
-router.post('/generate/image', validateGenerateImage, AIController.generateImage);
+router.post('/generate/image', validateGenerateImageLenient, AIController.generateImage);
 
 /**
  * @swagger
@@ -255,7 +255,7 @@ router.post('/generate/image', validateGenerateImage, AIController.generateImage
  *       500:
  *         description: Internal server error
  */
-router.post('/edit/image', validateEditImage, AIController.editImage);
+router.post('/edit/image', validateEditImageLenient, AIController.editImage);
 
 /**
  * @swagger
@@ -308,7 +308,7 @@ router.post('/edit/image', validateEditImage, AIController.editImage);
  *       500:
  *         description: Internal server error
  */
-router.post('/generate/bulk', validateGenerateBulk, AIController.generateBulk);
+router.post('/generate/bulk', validateGenerateBulkLenient, AIController.generateBulk);
 
 /**
  * @swagger
@@ -361,6 +361,6 @@ router.post('/generate/bulk', validateGenerateBulk, AIController.generateBulk);
  *       500:
  *         description: Internal server error
  */
-router.post('/search/knowledge', validateSearchKnowledge, AIController.searchKnowledge);
+router.post('/search/knowledge', validateSearchKnowledgeLenient, AIController.searchKnowledge);
 
 export default router;

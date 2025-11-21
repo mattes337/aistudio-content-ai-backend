@@ -1,7 +1,7 @@
 import { Router } from 'express';
 import { PostController } from '../controllers/PostController';
 import { authenticateToken } from '../middleware/auth';
-import { validatePost } from '../middleware/validation';
+import { validatePostLenient } from '../middleware/validation';
 import { uploadSingle } from '../utils/fileUpload';
 
 const router = Router();
@@ -54,7 +54,7 @@ router.get('/', PostController.getPosts);
  *       500:
  *         description: Internal server error
  */
-router.post('/', validatePost, PostController.createPost);
+router.post('/', validatePostLenient, PostController.createPost);
 
 /**
  * @swagger
@@ -118,7 +118,7 @@ router.get('/:postId', PostController.getPostById);
  *       500:
  *         description: Internal server error
  */
-router.put('/:postId', validatePost, PostController.updatePost);
+router.put('/:postId', validatePostLenient, PostController.updatePost);
 
 /**
  * @swagger

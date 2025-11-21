@@ -1,5 +1,6 @@
 import { Request, Response, NextFunction } from 'express';
 import Joi from 'joi';
+import logger from '../utils/logger';
 
 // Define credential schemas for different channel types
 const websiteCredentialsSchema = Joi.object({
@@ -147,6 +148,64 @@ const searchKnowledgeSchema = Joi.object({
   threshold: Joi.number().min(0).max(1).optional()
 });
 
+// Lenient validation function - logs unknown properties and invalid optional values but accepts the request
+function validateAndLog(
+  data: any,
+  allowedFields: string[],
+  endpointName: string,
+  schema?: Joi.ObjectSchema
+): any {
+  const validatedData: any = {};
+  const unknownProperties: string[] = [];
+  const validationWarnings: string[] = [];
+
+  // Check for unknown properties
+  for (const key in data) {
+    if (allowedFields.includes(key)) {
+      validatedData[key] = data[key];
+    } else {
+      unknownProperties.push(key);
+    }
+  }
+
+  // Log unknown properties if any
+  if (unknownProperties.length > 0) {
+    logger.warn(`[${endpointName}] Unknown properties received:`, {
+      unknownProperties,
+      receivedData: data
+    });
+  }
+
+  // If schema provided, validate optional fields and log warnings
+  if (schema) {
+    const { error } = schema.validate(validatedData, {
+      allowUnknown: true,
+      stripUnknown: false
+    });
+
+    if (error) {
+      for (const detail of error.details) {
+        const fieldName = detail.path.join('.');
+        if (detail.type.includes('required')) {
+          // Keep required field errors as they should cause 400
+          throw new Error(`${fieldName} is required`);
+        } else {
+          // Log warnings for invalid optional fields
+          validationWarnings.push(`${fieldName}: ${detail.message}`);
+          logger.warn(`[${endpointName}] Invalid optional field:`, {
+            field: fieldName,
+            value: validatedData[fieldName],
+            error: detail.message
+          });
+        }
+      }
+    }
+  }
+
+  return validatedData;
+}
+
+// Original strict validation middleware
 export const validateBody = (schema: Joi.ObjectSchema) => {
   return (req: Request, res: Response, next: NextFunction) => {
     const { error } = schema.validate(req.body);
@@ -160,6 +219,29 @@ export const validateBody = (schema: Joi.ObjectSchema) => {
   };
 };
 
+// Lenient validation middleware - logs but accepts requests with unknown properties
+export const validateBodyLenient = (schema: Joi.ObjectSchema, allowedFields: string[] = []) => {
+  return (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const endpointName = `${req.method} ${req.route?.path || req.path}`;
+      const validatedData = validateAndLog(req.body, allowedFields, endpointName, schema);
+      req.body = validatedData;
+      next();
+    } catch (error) {
+      if (error instanceof Error && error.message.includes('is required')) {
+        return res.status(400).json({
+          message: 'Validation error',
+          details: [error.message]
+        });
+      }
+      // For other errors, log but continue
+      logger.error(`Validation error in ${req.method} ${req.path}:`, error);
+      next();
+    }
+  };
+};
+
+// Strict validation exports (original behavior)
 export const validateChannel = validateBody(channelSchema);
 export const validateMediaAsset = validateBody(mediaAssetSchema);
 export const validateArticle = validateBody(articleSchema);
@@ -174,3 +256,19 @@ export const validateGenerateImage = validateBody(generateImageSchema);
 export const validateEditImage = validateBody(editImageSchema);
 export const validateGenerateBulk = validateBody(generateBulkSchema);
 export const validateSearchKnowledge = validateBody(searchKnowledgeSchema);
+
+// Lenient validation exports - logs unknown properties but accepts requests
+export const validateChannelLenient = validateBodyLenient(channelSchema, ['name', 'url', 'type', 'platformApi', 'credentials', 'data']);
+export const validateMediaAssetLenient = validateBodyLenient(mediaAssetSchema, ['title', 'type', 'file_path', 'data']);
+export const validateArticleLenient = validateBodyLenient(articleSchema, ['title', 'status', 'publish_date', 'channel_id', 'data']);
+export const validatePostLenient = validateBodyLenient(postSchema, ['status', 'publish_date', 'platform', 'linked_article_id', 'data']);
+export const validateNewsletterLenient = validateBodyLenient(newsletterSchema, ['subject', 'status', 'publish_date', 'channel_id', 'data']);
+export const validateKnowledgeSourceLenient = validateBodyLenient(knowledgeSourceSchema, ['name', 'type', 'source_origin', 'data']);
+export const validateGenerateArticleLenient = validateBodyLenient(generateArticleSchema, ['prompt', 'currentContent']);
+export const validateGenerateTitleLenient = validateBodyLenient(generateTitleSchema, ['content']);
+export const validateGenerateMetadataLenient = validateBodyLenient(generateMetadataSchema, ['content']);
+export const validateGeneratePostDetailsLenient = validateBodyLenient(generatePostDetailsSchema, ['prompt', 'currentCaption']);
+export const validateGenerateImageLenient = validateBodyLenient(generateImageSchema, ['prompt', 'aspectRatio']);
+export const validateEditImageLenient = validateBodyLenient(editImageSchema, ['prompt', 'base64ImageData', 'mimeType']);
+export const validateGenerateBulkLenient = validateBodyLenient(generateBulkSchema, ['articleCount', 'postCount', 'knowledgeSummary']);
+export const validateSearchKnowledgeLenient = validateBodyLenient(searchKnowledgeSchema, ['query', 'limit', 'threshold']);
