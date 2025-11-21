@@ -51,7 +51,18 @@ export class DatabaseService {
   static async getChannels(): Promise<Channel[]> {
     const result = await pool.query('SELECT * FROM channels ORDER BY created_at DESC');
     return result.rows.map(row => {
-      const parsedData = row.data ? JSON.parse(row.data) : {};
+      let parsedData = {};
+
+      // Handle potentially malformed JSON data
+      if (row.data) {
+        try {
+          parsedData = JSON.parse(row.data);
+        } catch (error) {
+          console.warn(`Invalid JSON data for channel ${row.id}, using empty object`);
+          parsedData = {};
+        }
+      }
+
       return {
         ...row,
         credentials: parsedData.credentials,
@@ -139,7 +150,18 @@ export class DatabaseService {
     if (result.rows.length === 0) return null;
 
     const updatedRow = result.rows[0];
-    const parsedData = updatedRow.data ? JSON.parse(updatedRow.data) : {};
+    let parsedData = {};
+
+    // Handle potentially malformed JSON data
+    if (updatedRow.data) {
+      try {
+        parsedData = JSON.parse(updatedRow.data);
+      } catch (error) {
+        console.warn(`Invalid JSON data for updated channel ${channelData.id}, using empty object`);
+        parsedData = {};
+      }
+    }
+
     return {
       ...updatedRow,
       credentials: parsedData.credentials,
