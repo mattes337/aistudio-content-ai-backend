@@ -36,12 +36,14 @@ export class DatabaseService {
       VALUES ($1, $2, $3, $4, $5)
       RETURNING *
     `;
+    const jsonString = JSON.stringify(combinedData);
+    console.log('Creating channel with JSON data:', jsonString);
     const values = [
       channelData.name,
       channelData.url,
       channelData.type,
       channelData.platformApi,
-      JSON.stringify(combinedData)
+      jsonString
     ];
 
     const result = await pool.query(query, values);
@@ -123,15 +125,28 @@ export class DatabaseService {
 
     // Handle credentials and data updates
     if (channelData.credentials !== undefined || channelData.data !== undefined) {
-      const combinedData = {
-        ...(currentChannel.credentials && { credentials: currentChannel.credentials }),
-        ...(currentChannel.data && { data: currentChannel.data }),
-        ...(channelData.credentials && { credentials: channelData.credentials }),
-        ...(channelData.data && { data: channelData.data })
-      };
+      const combinedData: any = {};
+
+      // Add existing credentials and data if they exist
+      if (currentChannel.credentials) {
+        combinedData.credentials = currentChannel.credentials;
+      }
+      if (currentChannel.data) {
+        combinedData.data = currentChannel.data;
+      }
+
+      // Add new credentials and data if they exist
+      if (channelData.credentials) {
+        combinedData.credentials = channelData.credentials;
+      }
+      if (channelData.data) {
+        combinedData.data = channelData.data;
+      }
 
       setParts.push(`data = $${paramCount++}`);
-      values.push(JSON.stringify(combinedData));
+      const jsonString = JSON.stringify(combinedData);
+      console.log('Storing JSON data for channel:', channelData.id, jsonString);
+      values.push(jsonString);
     }
 
     setParts.push(`updated_at = $${paramCount++}`);
