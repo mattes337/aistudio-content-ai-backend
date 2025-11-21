@@ -65,7 +65,18 @@ export class DatabaseService {
     if (result.rows.length === 0) return null;
 
     const row = result.rows[0];
-    const parsedData = row.data ? JSON.parse(row.data) : {};
+    let parsedData = {};
+
+    // Handle potentially malformed JSON data
+    if (row.data) {
+      try {
+        parsedData = JSON.parse(row.data);
+      } catch (error) {
+        console.warn(`Invalid JSON data for channel ${id}, using empty object`);
+        parsedData = {};
+      }
+    }
+
     return {
       ...row,
       credentials: parsedData.credentials,
