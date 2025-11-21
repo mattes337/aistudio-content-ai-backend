@@ -32,7 +32,14 @@ export class ChannelController {
 
   static async createChannel(req: Request, res: Response) {
     try {
-      const channelData: CreateChannelRequest = req.body;
+      // Handle metadata to data mapping for compatibility
+      const requestBody = { ...req.body };
+      if (requestBody.metadata && !requestBody.data) {
+        requestBody.data = requestBody.metadata;
+        delete requestBody.metadata;
+      }
+
+      const channelData: CreateChannelRequest = requestBody;
       const channel = await DatabaseService.createChannel(channelData);
       res.status(201).json(channel);
     } catch (error) {
@@ -44,13 +51,21 @@ export class ChannelController {
   static async updateChannel(req: Request, res: Response) {
     try {
       const { channelId } = req.params;
-      const channelData: UpdateChannelRequest = { id: channelId, ...req.body };
+
+      // Handle metadata to data mapping for compatibility
+      const requestBody = { ...req.body };
+      if (requestBody.metadata && !requestBody.data) {
+        requestBody.data = requestBody.metadata;
+        delete requestBody.metadata;
+      }
+
+      const channelData: UpdateChannelRequest = { id: channelId, ...requestBody };
       const channel = await DatabaseService.updateChannel(channelData);
-      
+
       if (!channel) {
         return res.status(404).json({ message: 'Channel not found' });
       }
-      
+
       res.json(channel);
     } catch (error) {
       logger.error('Error updating channel:', error);

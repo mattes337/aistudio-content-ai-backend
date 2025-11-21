@@ -265,7 +265,7 @@ export const validateGenerateBulk = validateBody(generateBulkSchema);
 export const validateSearchKnowledge = validateBody(searchKnowledgeSchema);
 
 // Lenient validation exports - logs unknown properties but accepts requests
-export const validateChannelLenient = validateBodyLenient(channelSchema, ['name', 'url', 'type', 'platformApi', 'credentials', 'data']);
+export const validateChannelLenient = validateBodyLenient(channelSchema, ['name', 'url', 'type', 'platformApi', 'credentials', 'data', 'metadata']);
 export const validateMediaAssetLenient = validateBodyLenient(mediaAssetSchema, ['title', 'type', 'file_path', 'data']);
 export const validateArticleLenient = validateBodyLenient(articleSchema, ['title', 'status', 'publish_date', 'channel_id', 'data']);
 export const validatePostLenient = validateBodyLenient(postSchema, ['status', 'publish_date', 'platform', 'linked_article_id', 'data']);

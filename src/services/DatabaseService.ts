@@ -58,7 +58,7 @@ export class DatabaseService {
         try {
           parsedData = JSON.parse(row.data);
         } catch (error) {
-          console.warn(`Invalid JSON data for channel ${row.id}, using empty object`);
+          console.warn(`Invalid JSON data for channel ${row.id}, using empty object. Data: "${row.data}"`, error);
           parsedData = {};
         }
       }
@@ -83,7 +83,7 @@ export class DatabaseService {
       try {
         parsedData = JSON.parse(row.data);
       } catch (error) {
-        console.warn(`Invalid JSON data for channel ${id}, using empty object`);
+        console.warn(`Invalid JSON data for channel ${id}, using empty object. Data: "${row.data}"`, error);
         parsedData = {};
       }
     }
@@ -157,7 +157,7 @@ export class DatabaseService {
       try {
         parsedData = JSON.parse(updatedRow.data);
       } catch (error) {
-        console.warn(`Invalid JSON data for updated channel ${channelData.id}, using empty object`);
+        console.warn(`Invalid JSON data for updated channel ${channelData.id}, using empty object. Data: "${updatedRow.data}"`, error);
         parsedData = {};
       }
     }
