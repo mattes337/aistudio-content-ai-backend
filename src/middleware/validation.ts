@@ -32,7 +32,7 @@ const xCredentialsSchema = Joi.object({
 });
 
 const newsletterCredentialsSchema = Joi.object({
-  smtpHost: Joi.string().required(),
+  smtpHost: Joi.string().optional(),
   smtpPort: Joi.number().integer().min(1).max(65535).optional(),
   smtpUser: Joi.string().optional(),
   smtpPassword: Joi.string().optional(),
@@ -199,6 +199,13 @@ function validateAndLog(
           });
         }
       }
+    }
+  }
+
+  // Custom validation: For newsletter channels, if credentials are provided, smtpHost is required
+  if (validatedData.type === 'newsletter' && validatedData.credentials && typeof validatedData.credentials === 'object') {
+    if (!validatedData.credentials.smtpHost) {
+      throw new Error('credentials.smtpHost is required when credentials are provided for newsletter channels');
     }
   }
 
