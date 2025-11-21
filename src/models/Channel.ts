@@ -4,7 +4,8 @@ export interface Channel {
   url: string;
   type: ChannelType;
   platformApi: PlatformApi;
-  data: Record<string, any>;
+  credentials?: Record<string, any>;
+  data?: Record<string, any>;
   created_at: Date;
   updated_at: Date;
 }
@@ -17,6 +18,7 @@ export interface CreateChannelRequest {
   url: string;
   type: ChannelType;
   platformApi: PlatformApi;
+  credentials?: Record<string, any>;
   data?: Record<string, any>;
 }
 

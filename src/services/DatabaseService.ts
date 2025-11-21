@@ -25,9 +25,15 @@ import {
 export class DatabaseService {
   // Channel operations
   static async createChannel(channelData: CreateChannelRequest): Promise<Channel> {
+    // Combine credentials and data into a single JSON structure for storage
+    const combinedData = {
+      ...(channelData.credentials && { credentials: channelData.credentials }),
+      ...(channelData.data && { data: channelData.data })
+    };
+
     const query = `
-      INSERT INTO channels (name, url, type, platform_api, credentials, metadata)
-      VALUES ($1, $2, $3, $4, $5, $6)
+      INSERT INTO channels (name, url, type, platform_api, data)
+      VALUES ($1, $2, $3, $4, $5)
       RETURNING *
     `;
     const values = [
@@ -35,25 +41,43 @@ export class DatabaseService {
       channelData.url,
       channelData.type,
       channelData.platformApi,
-      JSON.stringify(channelData.credentials),
-      JSON.stringify(channelData.metadata)
+      JSON.stringify(combinedData)
     ];
-    
+
     const result = await pool.query(query, values);
     return result.rows[0];
   }
 
   static async getChannels(): Promise<Channel[]> {
     const result = await pool.query('SELECT * FROM channels ORDER BY created_at DESC');
-    return result.rows;
+    return result.rows.map(row => {
+      const parsedData = row.data ? JSON.parse(row.data) : {};
+      return {
+        ...row,
+        credentials: parsedData.credentials,
+        data: parsedData.data
+      };
+    });
   }
 
   static async getChannelById(id: string): Promise<Channel | null> {
     const result = await pool.query('SELECT * FROM channels WHERE id = $1', [id]);
-    return result.rows[0] || null;
+    if (result.rows.length === 0) return null;
+
+    const row = result.rows[0];
+    const parsedData = row.data ? JSON.parse(row.data) : {};
+    return {
+      ...row,
+      credentials: parsedData.credentials,
+      data: parsedData.data
+    };
   }
 
   static async updateChannel(channelData: UpdateChannelRequest): Promise<Channel | null> {
+    // First get the current channel to merge with new data
+    const currentChannel = await this.getChannelById(channelData.id);
+    if (!currentChannel) return null;
+
     const setParts: string[] = [];
     const values: any[] = [];
     let paramCount = 1;
@@ -74,13 +98,18 @@ export class DatabaseService {
       setParts.push(`platform_api = $${paramCount++}`);
       values.push(channelData.platformApi);
     }
-    if (channelData.credentials !== undefined) {
-      setParts.push(`credentials = $${paramCount++}`);
-      values.push(JSON.stringify(channelData.credentials));
-    }
-    if (channelData.metadata !== undefined) {
-      setParts.push(`metadata = $${paramCount++}`);
-      values.push(JSON.stringify(channelData.metadata));
+
+    // Handle credentials and data updates
+    if (channelData.credentials !== undefined || channelData.data !== undefined) {
+      const combinedData = {
+        ...(currentChannel.credentials && { credentials: currentChannel.credentials }),
+        ...(currentChannel.data && { data: currentChannel.data }),
+        ...(channelData.credentials && { credentials: channelData.credentials }),
+        ...(channelData.data && { data: channelData.data })
+      };
+
+      setParts.push(`data = $${paramCount++}`);
+      values.push(JSON.stringify(combinedData));
     }
 
     setParts.push(`updated_at = $${paramCount++}`);
@@ -89,14 +118,22 @@ export class DatabaseService {
     values.push(channelData.id);
 
     const query = `
-      UPDATE channels 
+      UPDATE channels
       SET ${setParts.join(', ')}
       WHERE id = $${paramCount}
       RETURNING *
     `;
 
     const result = await pool.query(query, values);
-    return result.rows[0] || null;
+    if (result.rows.length === 0) return null;
+
+    const updatedRow = result.rows[0];
+    const parsedData = updatedRow.data ? JSON.parse(updatedRow.data) : {};
+    return {
+      ...updatedRow,
+      credentials: parsedData.credentials,
+      data: parsedData.data
+    };
   }
 
   static async deleteChannel(id: string): Promise<boolean> {

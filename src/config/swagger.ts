@@ -63,9 +63,22 @@ const options = {
             },
             credentials: {
               type: 'object',
-              description: 'Platform API credentials'
+              description: 'Platform API credentials - varies by channel type',
+              example: {
+                newsletter: {
+                  smtpHost: 'smtp.gmail.com',
+                  smtpPort: 587,
+                  smtpUser: 'noreply@example.com',
+                  smtpPassword: 'app-password',
+                  senderEmail: 'newsletter@example.com'
+                },
+                instagram: {
+                  accessToken: 'EAAJZC...access-token',
+                  userId: '17841412345678901'
+                }
+              }
             },
-            metadata: {
+            data: {
               type: 'object',
               description: 'Additional channel metadata'
             },
@@ -1067,6 +1080,166 @@ const options = {
             recipient_count: {
               type: 'integer',
               description: 'Number of recipients this newsletter was sent to'
+            }
+          }
+        },
+        ChatSession: {
+          type: 'object',
+          properties: {
+            id: {
+              type: 'string',
+              format: 'uuid',
+              description: 'Chat session unique identifier'
+            },
+            title: {
+              type: 'string',
+              description: 'Chat session title',
+              maxLength: 255
+            },
+            created_at: {
+              type: 'string',
+              format: 'date-time',
+              description: 'Chat session creation date'
+            },
+            updated_at: {
+              type: 'string',
+              format: 'date-time',
+              description: 'Chat session last update date'
+            }
+          }
+        },
+        ChatSessionWithMessages: {
+          type: 'object',
+          properties: {
+            id: {
+              type: 'string',
+              format: 'uuid',
+              description: 'Chat session unique identifier'
+            },
+            title: {
+              type: 'string',
+              description: 'Chat session title',
+              maxLength: 255
+            },
+            created_at: {
+              type: 'string',
+              format: 'date-time',
+              description: 'Chat session creation date'
+            },
+            updated_at: {
+              type: 'string',
+              format: 'date-time',
+              description: 'Chat session last update date'
+            },
+            messages: {
+              type: 'array',
+              items: {
+                $ref: '#/components/schemas/ChatMessage'
+              },
+              description: 'Chat messages in this session'
+            },
+            channels: {
+              type: 'array',
+              items: {
+                type: 'string'
+              },
+              description: 'Channel IDs associated with this session'
+            }
+          }
+        },
+        ChatMessage: {
+          type: 'object',
+          properties: {
+            id: {
+              type: 'string',
+              format: 'uuid',
+              description: 'Chat message unique identifier'
+            },
+            session_id: {
+              type: 'string',
+              format: 'uuid',
+              description: 'Chat session ID'
+            },
+            role: {
+              type: 'string',
+              enum: ['user', 'assistant'],
+              description: 'Message role'
+            },
+            content: {
+              type: 'string',
+              description: 'Message content'
+            },
+            created_at: {
+              type: 'string',
+              format: 'date-time',
+              description: 'Message creation date'
+            }
+          }
+        },
+        CreateChatSessionRequest: {
+          type: 'object',
+          properties: {
+            title: {
+              type: 'string',
+              description: 'Chat session title',
+              maxLength: 255
+            },
+            channel_ids: {
+              type: 'array',
+              items: {
+                type: 'string'
+              },
+              description: 'Array of channel IDs to associate with this session'
+            }
+          }
+        },
+        UpdateChatSessionRequest: {
+          type: 'object',
+          properties: {
+            title: {
+              type: 'string',
+              description: 'Chat session title',
+              maxLength: 255
+            },
+            channel_ids: {
+              type: 'array',
+              items: {
+                type: 'string'
+              },
+              description: 'Array of channel IDs to associate with this session'
+            }
+          }
+        },
+        CreateChatMessageRequest: {
+          type: 'object',
+          required: ['role', 'content'],
+          properties: {
+            role: {
+              type: 'string',
+              enum: ['user', 'assistant'],
+              description: 'Message role'
+            },
+            content: {
+              type: 'string',
+              description: 'Message content'
+            }
+          }
+        },
+        ChatResponse: {
+          type: 'object',
+          properties: {
+            userMessage: {
+              type: 'string',
+              description: 'User\'s message'
+            },
+            assistantMessage: {
+              type: 'string',
+              description: 'Assistant\'s response'
+            },
+            messageId: {
+              type: 'string',
+              format: 'uuid',
+              description: 'ID of the assistant message'
             }
           }
         }
