@@ -1242,6 +1242,205 @@ const options = {
               description: 'ID of the assistant message'
             }
           }
+        },
+        RefineContentRequest: {
+          type: 'object',
+          required: ['instruction', 'type'],
+          properties: {
+            currentContent: {
+              type: 'string',
+              description: 'Current content to refine'
+            },
+            instruction: {
+              type: 'string',
+              description: 'User instruction for refinement'
+            },
+            type: {
+              type: 'string',
+              enum: ['article', 'post', 'newsletter'],
+              description: 'Content type'
+            },
+            history: {
+              type: 'array',
+              items: {
+                type: 'object',
+                properties: {
+                  role: {
+                    type: 'string',
+                    enum: ['user', 'assistant']
+                  },
+                  text: {
+                    type: 'string'
+                  }
+                }
+              },
+              description: 'Chat history for context'
+            }
+          }
+        },
+        RefineContentResponse: {
+          type: 'object',
+          properties: {
+            content: {
+              type: 'string',
+              description: 'Refined content'
+            },
+            chatResponse: {
+              type: 'string',
+              description: 'AI chat response about the changes'
+            }
+          }
+        },
+        ResearchRequest: {
+          type: 'object',
+          required: ['query'],
+          properties: {
+            query: {
+              type: 'string',
+              description: 'Research query'
+            },
+            channelId: {
+              type: 'string',
+              description: 'Optional channel ID for context filtering'
+            },
+            notebookId: {
+              type: 'string',
+              description: 'Optional notebook ID for knowledge base'
+            },
+            history: {
+              type: 'array',
+              items: {
+                type: 'object',
+                properties: {
+                  role: {
+                    type: 'string',
+                    enum: ['user', 'assistant']
+                  },
+                  text: {
+                    type: 'string'
+                  }
+                }
+              },
+              description: 'Conversation history'
+            }
+          }
+        },
+        ResearchResponse: {
+          type: 'object',
+          properties: {
+            response: {
+              type: 'string',
+              description: 'Research response'
+            },
+            sources: {
+              type: 'array',
+              items: {
+                type: 'object',
+                properties: {
+                  name: {
+                    type: 'string'
+                  },
+                  content: {
+                    type: 'string'
+                  }
+                }
+              },
+              description: 'Sources used in the response'
+            },
+            toolCalls: {
+              type: 'array',
+              items: {
+                type: 'object'
+              },
+              description: 'Tool calls made during research'
+            }
+          }
+        },
+        KnowledgeSearchRequest: {
+          type: 'object',
+          required: ['query'],
+          properties: {
+            query: {
+              type: 'string',
+              description: 'Search query'
+            },
+            type: {
+              type: 'string',
+              enum: ['text', 'vector'],
+              default: 'vector',
+              description: 'Search type'
+            },
+            limit: {
+              type: 'number',
+              default: 10,
+              description: 'Maximum results'
+            },
+            minimum_score: {
+              type: 'number',
+              default: 0.2,
+              description: 'Minimum relevance score (0-1)'
+            }
+          }
+        },
+        KnowledgeSearchResponse: {
+          type: 'object',
+          properties: {
+            results: {
+              type: 'array',
+              items: {
+                type: 'object',
+                properties: {
+                  id: {
+                    type: 'string'
+                  },
+                  content: {
+                    type: 'string'
+                  },
+                  source_name: {
+                    type: 'string'
+                  },
+                  score: {
+                    type: 'number'
+                  }
+                }
+              },
+              description: 'Search results'
+            },
+            total_count: {
+              type: 'number',
+              description: 'Total number of results'
+            },
+            search_type: {
+              type: 'string',
+              description: 'Type of search performed'
+            }
+          }
+        },
+        AIHealthResponse: {
+          type: 'object',
+          properties: {
+            status: {
+              type: 'string',
+              description: 'Overall status'
+            },
+            services: {
+              type: 'object',
+              properties: {
+                gemini: {
+                  type: 'boolean',
+                  description: 'Gemini API availability'
+                },
+                claude_agent: {
+                  type: 'boolean',
+                  description: 'Claude Agent SDK availability'
+                },
+                open_notebook: {
+                  type: 'boolean',
+                  description: 'Open Notebook service availability'
+                }
+              }
+            }
+          }
         }
       }
     },

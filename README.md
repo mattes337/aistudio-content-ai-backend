@@ -5,6 +5,10 @@ A TypeScript backend built with Bun, Express, and PostgreSQL for managing AI-pow
 ## Features
 
 - **Multi-platform Content Management**: Support for websites, Instagram, Facebook, and X (Twitter)
+- **Advanced AI Services**:
+  - **Gemini AI**: Content generation, refinement, and image creation
+  - **Claude Agent SDK**: Research capabilities with tool access and RAG support
+  - **Open Notebook Integration**: Knowledge base for context-aware generation
 - **Knowledge Base**: AI-powered knowledge ingestion and vector search capabilities
 - **Content Generation**: Integrated with Google Gemini API for content and image generation
 - **Media Asset Management**: Organized media library with categorization
@@ -19,7 +23,10 @@ A TypeScript backend built with Bun, Express, and PostgreSQL for managing AI-pow
 - **Database**: PostgreSQL with pgvector extension
 - **Language**: TypeScript
 - **Containerization**: Docker & Docker Compose
-- **AI Integration**: Google Gemini API
+- **AI Integration**:
+  - Google Gemini API (`@google/genai`)
+  - Anthropic Claude Agent SDK (`@anthropic-ai/claude-agent-sdk`)
+  - Open Notebook (RAG/Knowledge Base)
 - **Authentication**: JWT tokens
 
 ## Quick Start
@@ -29,6 +36,8 @@ A TypeScript backend built with Bun, Express, and PostgreSQL for managing AI-pow
 - Docker & Docker Compose
 - Bun (for local development)
 - Google Gemini API key
+- Anthropic API key (for Claude Agent features)
+- Open Notebook service (optional, for RAG features)
 
 ### Environment Setup
 
@@ -37,10 +46,14 @@ A TypeScript backend built with Bun, Express, and PostgreSQL for managing AI-pow
 cp .env.example .env
 ```
 
-2. Edit `.env` and add your Gemini API key:
-```
+2. Edit `.env` and configure API keys:
+```bash
 GEMINI_API_KEY=your-gemini-api-key
+ANTHROPIC_API_KEY=your-anthropic-api-key
+OPEN_NOTEBOOK_URL=http://localhost:5055  # Optional
 ```
+
+See [AI Services Documentation](docs/ai_services.md) for detailed configuration.
 
 ### Docker Deployment
 
@@ -128,6 +141,33 @@ Authorization: Bearer <your-jwt-token>
 - `POST /api/knowledge-sources/:id/reingest` - Re-process source
 
 ### AI Services
+
+**See [AI Services Documentation](docs/ai_services.md) for complete API reference.**
+
+#### Gemini Services (Content Generation)
+- `POST /api/ai/refine-content` - Iterative content refinement with chat
+- `POST /api/ai/generate/title` - Generate article title
+- `POST /api/ai/generate/subject` - Generate newsletter subject line
+- `POST /api/ai/generate/metadata` - Generate SEO metadata and excerpt
+- `POST /api/ai/generate/excerpt` - Generate content excerpt
+- `POST /api/ai/generate/preview-text` - Generate email preview text
+- `POST /api/ai/generate/post-details-v2` - Generate social post (caption, alt text, tags)
+- `POST /api/ai/generate/image-v2` - Generate image from text
+- `POST /api/ai/edit/image-v2` - Edit existing image
+- `POST /api/ai/infer-metadata` - Auto-infer metadata by content type
+
+#### Claude Agent Services (Research & Tasks)
+- `POST /api/ai/research` - Research query with RAG support
+- `POST /api/ai/agent/task` - Execute content creation task
+
+#### Open Notebook Services (Knowledge Base)
+- `POST /api/ai/knowledge/search` - Search knowledge base
+- `POST /api/ai/knowledge/ask` - Ask question to knowledge base
+
+#### Health & Monitoring
+- `GET /api/ai/health` - Check all AI services status
+
+#### Legacy Endpoints (Deprecated)
 - `POST /api/ai/generate/article` - Generate article content
 - `POST /api/ai/generate/article-title` - Generate title from content
 - `POST /api/ai/generate/article-metadata` - Generate SEO metadata

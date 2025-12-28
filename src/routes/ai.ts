@@ -363,4 +363,645 @@ router.post('/generate/bulk', validateGenerateBulkLenient, AIController.generate
  */
 router.post('/search/knowledge', validateSearchKnowledgeLenient, AIController.searchKnowledge);
 
+// ============== New Gemini Endpoints ==============
+
+/**
+ * @swagger
+ * /api/ai/refine-content:
+ *   post:
+ *     summary: Refine content with AI assistance (chat-based)
+ *     tags: [AI Generation]
+ *     security:
+ *       - bearerAuth: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required: [instruction, type]
+ *             properties:
+ *               currentContent:
+ *                 type: string
+ *                 description: Current content to refine
+ *               instruction:
+ *                 type: string
+ *                 description: User instruction for refinement
+ *               type:
+ *                 type: string
+ *                 enum: [article, post, newsletter]
+ *                 description: Content type
+ *               history:
+ *                 type: array
+ *                 items:
+ *                   type: object
+ *                   properties:
+ *                     role:
+ *                       type: string
+ *                       enum: [user, assistant]
+ *                     text:
+ *                       type: string
+ *                 description: Chat history for context
+ *     responses:
+ *       200:
+ *         description: Content refined successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 content:
+ *                   type: string
+ *                 chatResponse:
+ *                   type: string
+ *       500:
+ *         description: Internal server error
+ */
+router.post('/refine-content', AIController.refineContent);
+
+/**
+ * @swagger
+ * /api/ai/generate/title:
+ *   post:
+ *     summary: Generate a title from content
+ *     tags: [AI Generation]
+ *     security:
+ *       - bearerAuth: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required: [content]
+ *             properties:
+ *               content:
+ *                 type: string
+ *                 description: Content to generate title from
+ *     responses:
+ *       200:
+ *         description: Title generated successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 title:
+ *                   type: string
+ *       500:
+ *         description: Internal server error
+ */
+router.post('/generate/title', AIController.generateTitle);
+
+/**
+ * @swagger
+ * /api/ai/generate/subject:
+ *   post:
+ *     summary: Generate a newsletter subject line
+ *     tags: [AI Generation]
+ *     security:
+ *       - bearerAuth: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required: [content]
+ *             properties:
+ *               content:
+ *                 type: string
+ *                 description: Newsletter content
+ *     responses:
+ *       200:
+ *         description: Subject generated successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 subject:
+ *                   type: string
+ *       500:
+ *         description: Internal server error
+ */
+router.post('/generate/subject', AIController.generateSubject);
+
+/**
+ * @swagger
+ * /api/ai/generate/metadata:
+ *   post:
+ *     summary: Generate SEO metadata and excerpt
+ *     tags: [AI Generation]
+ *     security:
+ *       - bearerAuth: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required: [content, title]
+ *             properties:
+ *               content:
+ *                 type: string
+ *                 description: Article content
+ *               title:
+ *                 type: string
+ *                 description: Article title
+ *     responses:
+ *       200:
+ *         description: Metadata generated successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 seo:
+ *                   $ref: '#/components/schemas/SEO'
+ *                 excerpt:
+ *                   type: string
+ *       500:
+ *         description: Internal server error
+ */
+router.post('/generate/metadata', AIController.generateMetadata);
+
+/**
+ * @swagger
+ * /api/ai/generate/excerpt:
+ *   post:
+ *     summary: Generate an excerpt from content
+ *     tags: [AI Generation]
+ *     security:
+ *       - bearerAuth: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required: [content]
+ *             properties:
+ *               content:
+ *                 type: string
+ *                 description: Content to summarize
+ *     responses:
+ *       200:
+ *         description: Excerpt generated successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 excerpt:
+ *                   type: string
+ *       500:
+ *         description: Internal server error
+ */
+router.post('/generate/excerpt', AIController.generateExcerpt);
+
+/**
+ * @swagger
+ * /api/ai/generate/preview-text:
+ *   post:
+ *     summary: Generate preview text for newsletter
+ *     tags: [AI Generation]
+ *     security:
+ *       - bearerAuth: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required: [content]
+ *             properties:
+ *               content:
+ *                 type: string
+ *                 description: Newsletter content
+ *     responses:
+ *       200:
+ *         description: Preview text generated successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 previewText:
+ *                   type: string
+ *       500:
+ *         description: Internal server error
+ */
+router.post('/generate/preview-text', AIController.generatePreviewText);
+
+/**
+ * @swagger
+ * /api/ai/generate/post-details-v2:
+ *   post:
+ *     summary: Generate post details (content, altText, tags) using new Gemini SDK
+ *     tags: [AI Generation]
+ *     security:
+ *       - bearerAuth: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required: [prompt]
+ *             properties:
+ *               prompt:
+ *                 type: string
+ *                 description: Prompt for post generation
+ *               currentCaption:
+ *                 type: string
+ *                 description: Current caption for context
+ *     responses:
+ *       200:
+ *         description: Post details generated successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 content:
+ *                   type: string
+ *                 altText:
+ *                   type: string
+ *                 tags:
+ *                   type: array
+ *                   items:
+ *                     type: string
+ *       500:
+ *         description: Internal server error
+ */
+router.post('/generate/post-details-v2', AIController.generatePostDetailsNew);
+
+/**
+ * @swagger
+ * /api/ai/generate/image-v2:
+ *   post:
+ *     summary: Generate an image using new Gemini SDK
+ *     tags: [AI Generation]
+ *     security:
+ *       - bearerAuth: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required: [prompt]
+ *             properties:
+ *               prompt:
+ *                 type: string
+ *                 description: Image generation prompt
+ *               aspectRatio:
+ *                 type: string
+ *                 enum: ['1:1', '16:9', '9:16']
+ *                 default: '1:1'
+ *                 description: Target aspect ratio
+ *     responses:
+ *       200:
+ *         description: Image generated successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 imageUrl:
+ *                   type: string
+ *                 base64Image:
+ *                   type: string
+ *                 mimeType:
+ *                   type: string
+ *       500:
+ *         description: Internal server error
+ */
+router.post('/generate/image-v2', AIController.generateImageNew);
+
+/**
+ * @swagger
+ * /api/ai/edit/image-v2:
+ *   post:
+ *     summary: Edit an image using new Gemini SDK
+ *     tags: [AI Generation]
+ *     security:
+ *       - bearerAuth: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required: [base64ImageData, mimeType, prompt]
+ *             properties:
+ *               base64ImageData:
+ *                 type: string
+ *                 description: Base64-encoded image data
+ *               mimeType:
+ *                 type: string
+ *                 description: Image MIME type
+ *               prompt:
+ *                 type: string
+ *                 description: Edit instruction
+ *     responses:
+ *       200:
+ *         description: Image edited successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 imageUrl:
+ *                   type: string
+ *                 base64Image:
+ *                   type: string
+ *       500:
+ *         description: Internal server error
+ */
+router.post('/edit/image-v2', AIController.editImageNew);
+
+/**
+ * @swagger
+ * /api/ai/infer-metadata:
+ *   post:
+ *     summary: Infer metadata based on content type
+ *     tags: [AI Generation]
+ *     security:
+ *       - bearerAuth: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required: [content, type]
+ *             properties:
+ *               content:
+ *                 type: string
+ *                 description: Content to analyze
+ *               type:
+ *                 type: string
+ *                 enum: [article, post, newsletter]
+ *                 description: Content type
+ *     responses:
+ *       200:
+ *         description: Metadata inferred successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *       500:
+ *         description: Internal server error
+ */
+router.post('/infer-metadata', AIController.inferMetadata);
+
+// ============== Claude Agent Endpoints ==============
+
+/**
+ * @swagger
+ * /api/ai/research:
+ *   post:
+ *     summary: Research query using Claude Agent with RAG
+ *     tags: [AI Research]
+ *     security:
+ *       - bearerAuth: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required: [query]
+ *             properties:
+ *               query:
+ *                 type: string
+ *                 description: Research query
+ *               channelId:
+ *                 type: string
+ *                 description: Optional channel ID for context filtering
+ *               notebookId:
+ *                 type: string
+ *                 description: Optional notebook ID for knowledge base
+ *               history:
+ *                 type: array
+ *                 items:
+ *                   type: object
+ *                   properties:
+ *                     role:
+ *                       type: string
+ *                       enum: [user, assistant]
+ *                     text:
+ *                       type: string
+ *                 description: Conversation history
+ *     responses:
+ *       200:
+ *         description: Research completed successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 response:
+ *                   type: string
+ *                 sources:
+ *                   type: array
+ *                   items:
+ *                     type: object
+ *                     properties:
+ *                       name:
+ *                         type: string
+ *                       content:
+ *                         type: string
+ *                 toolCalls:
+ *                   type: array
+ *                   items:
+ *                     type: object
+ *       500:
+ *         description: Internal server error
+ */
+router.post('/research', AIController.researchQuery);
+
+/**
+ * @swagger
+ * /api/ai/agent/task:
+ *   post:
+ *     summary: Execute a content creation task via Claude Agent
+ *     tags: [AI Research]
+ *     security:
+ *       - bearerAuth: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required: [type]
+ *             properties:
+ *               type:
+ *                 type: string
+ *                 enum: [create_article_draft, create_post_draft, create_media_draft]
+ *                 description: Task type
+ *               params:
+ *                 type: object
+ *                 description: Task parameters (title, topic, platform, etc.)
+ *     responses:
+ *       200:
+ *         description: Task executed successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 type:
+ *                   type: string
+ *                 result:
+ *                   type: string
+ *       500:
+ *         description: Internal server error
+ */
+router.post('/agent/task', AIController.executeAgentTask);
+
+// ============== Open Notebook RAG Endpoints ==============
+
+/**
+ * @swagger
+ * /api/ai/knowledge/search:
+ *   post:
+ *     summary: Search the Open Notebook knowledge base
+ *     tags: [Knowledge Base]
+ *     security:
+ *       - bearerAuth: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required: [query]
+ *             properties:
+ *               query:
+ *                 type: string
+ *                 description: Search query
+ *               type:
+ *                 type: string
+ *                 enum: [text, vector]
+ *                 default: vector
+ *                 description: Search type
+ *               limit:
+ *                 type: number
+ *                 default: 10
+ *                 description: Maximum results
+ *               minimum_score:
+ *                 type: number
+ *                 default: 0.2
+ *                 description: Minimum relevance score (0-1)
+ *     responses:
+ *       200:
+ *         description: Search completed successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 results:
+ *                   type: array
+ *                   items:
+ *                     type: object
+ *                     properties:
+ *                       id:
+ *                         type: string
+ *                       content:
+ *                         type: string
+ *                       source_name:
+ *                         type: string
+ *                       score:
+ *                         type: number
+ *                 total_count:
+ *                   type: number
+ *                 search_type:
+ *                   type: string
+ *       500:
+ *         description: Internal server error
+ */
+router.post('/knowledge/search', AIController.searchKnowledgeBase);
+
+/**
+ * @swagger
+ * /api/ai/knowledge/ask:
+ *   post:
+ *     summary: Ask a question to the Open Notebook knowledge base
+ *     tags: [Knowledge Base]
+ *     security:
+ *       - bearerAuth: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required: [question]
+ *             properties:
+ *               question:
+ *                 type: string
+ *                 description: Question to ask
+ *               strategy_model:
+ *                 type: string
+ *                 description: Model ID for strategy
+ *               answer_model:
+ *                 type: string
+ *                 description: Model ID for answering
+ *               final_answer_model:
+ *                 type: string
+ *                 description: Model ID for final synthesis
+ *     responses:
+ *       200:
+ *         description: Answer generated successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 answer:
+ *                   type: string
+ *                 question:
+ *                   type: string
+ *       500:
+ *         description: Internal server error
+ */
+router.post('/knowledge/ask', AIController.askKnowledgeBase);
+
+/**
+ * @swagger
+ * /api/ai/health:
+ *   get:
+ *     summary: Check AI services health
+ *     tags: [AI Generation]
+ *     security:
+ *       - bearerAuth: []
+ *     responses:
+ *       200:
+ *         description: Health status
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 status:
+ *                   type: string
+ *                 services:
+ *                   type: object
+ *                   properties:
+ *                     gemini:
+ *                       type: boolean
+ *                     claude_agent:
+ *                       type: boolean
+ *                     open_notebook:
+ *                       type: boolean
+ *       500:
+ *         description: Internal server error
+ */
+router.get('/health', AIController.healthCheck);
+
 export default router;

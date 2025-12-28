@@ -148,6 +148,54 @@ const searchKnowledgeSchema = Joi.object({
   threshold: Joi.number().min(0).max(1).optional()
 });
 
+const refineContentSchema = Joi.object({
+  currentContent: Joi.string().optional().allow(''),
+  instruction: Joi.string().min(1).required(),
+  type: Joi.string().valid('article', 'post', 'newsletter').required(),
+  history: Joi.array().items(
+    Joi.object({
+      role: Joi.string().valid('user', 'assistant').required(),
+      text: Joi.string().required()
+    })
+  ).optional()
+});
+
+const researchQuerySchema = Joi.object({
+  query: Joi.string().min(1).required(),
+  channelId: Joi.string().uuid().optional(),
+  notebookId: Joi.string().optional(),
+  history: Joi.array().items(
+    Joi.object({
+      role: Joi.string().valid('user', 'assistant').required(),
+      text: Joi.string().required()
+    })
+  ).optional()
+});
+
+const agentTaskSchema = Joi.object({
+  type: Joi.string().valid('create_article_draft', 'create_post_draft', 'create_media_draft').required(),
+  params: Joi.object().optional()
+});
+
+const knowledgeSearchSchema = Joi.object({
+  query: Joi.string().min(1).required(),
+  type: Joi.string().valid('text', 'vector').optional(),
+  limit: Joi.number().integer().min(1).max(100).optional(),
+  minimum_score: Joi.number().min(0).max(1).optional()
+});
+
+const knowledgeAskSchema = Joi.object({
+  question: Joi.string().min(1).required(),
+  strategy_model: Joi.string().optional(),
+  answer_model: Joi.string().optional(),
+  final_answer_model: Joi.string().optional()
+});
+
+const inferMetadataSchema = Joi.object({
+  content: Joi.string().min(1).required(),
+  type: Joi.string().valid('article', 'post', 'newsletter').required()
+});
+
 // Lenient validation function - logs unknown properties and invalid optional values but accepts the request
 function validateAndLog(
   data: any,
@@ -264,6 +312,14 @@ export const validateEditImage = validateBody(editImageSchema);
 export const validateGenerateBulk = validateBody(generateBulkSchema);
 export const validateSearchKnowledge = validateBody(searchKnowledgeSchema);
 
+// New AI validation exports
+export const validateRefineContent = validateBody(refineContentSchema);
+export const validateResearchQuery = validateBody(researchQuerySchema);
+export const validateAgentTask = validateBody(agentTaskSchema);
+export const validateKnowledgeSearch = validateBody(knowledgeSearchSchema);
+export const validateKnowledgeAsk = validateBody(knowledgeAskSchema);
+export const validateInferMetadata = validateBody(inferMetadataSchema);
+
 // Lenient validation exports - logs unknown properties but accepts requests
 export const validateChannelLenient = validateBodyLenient(channelSchema, ['name', 'url', 'type', 'platformApi', 'credentials', 'data', 'metadata']);
 export const validateMediaAssetLenient = validateBodyLenient(mediaAssetSchema, ['title', 'type', 'file_path', 'data']);
@@ -279,3 +335,11 @@ export const validateGenerateImageLenient = validateBodyLenient(generateImageSch
 export const validateEditImageLenient = validateBodyLenient(editImageSchema, ['prompt', 'base64ImageData', 'mimeType']);
 export const validateGenerateBulkLenient = validateBodyLenient(generateBulkSchema, ['articleCount', 'postCount', 'knowledgeSummary']);
 export const validateSearchKnowledgeLenient = validateBodyLenient(searchKnowledgeSchema, ['query', 'limit', 'threshold']);
+
+// Lenient versions for new AI endpoints
+export const validateRefineContentLenient = validateBodyLenient(refineContentSchema, ['currentContent', 'instruction', 'type', 'history']);
+export const validateResearchQueryLenient = validateBodyLenient(researchQuerySchema, ['query', 'channelId', 'notebookId', 'history']);
+export const validateAgentTaskLenient = validateBodyLenient(agentTaskSchema, ['type', 'params']);
+export const validateKnowledgeSearchLenient = validateBodyLenient(knowledgeSearchSchema, ['query', 'type', 'limit', 'minimum_score']);
+export const validateKnowledgeAskLenient = validateBodyLenient(knowledgeAskSchema, ['question', 'strategy_model', 'answer_model', 'final_answer_model']);
+export const validateInferMetadataLenient = validateBodyLenient(inferMetadataSchema, ['content', 'type']);
