@@ -1,18 +1,18 @@
 import { pool } from '../config/database';
-import { Channel, CreateChannelRequest, UpdateChannelRequest } from '../models/Channel';
-import { MediaAsset, CreateMediaAssetRequest, UpdateMediaAssetRequest } from '../models/MediaAsset';
-import { Article, CreateArticleRequest, UpdateArticleRequest } from '../models/Article';
-import { Post, CreatePostRequest, UpdatePostRequest } from '../models/Post';
-import {
+import type { Channel, CreateChannelRequest, UpdateChannelRequest } from '../models/Channel';
+import type { MediaAsset, CreateMediaAssetRequest, UpdateMediaAssetRequest } from '../models/MediaAsset';
+import type { Article, CreateArticleRequest, UpdateArticleRequest } from '../models/Article';
+import type { Post, CreatePostRequest, UpdatePostRequest } from '../models/Post';
+import type {
   KnowledgeSource,
   KnowledgeChunk,
   KnowledgeSourceChannel,
   CreateKnowledgeSourceRequest,
   UpdateKnowledgeSourceRequest
 } from '../models/KnowledgeSource';
-import { CreateRecipientRequest, UpdateRecipientRequest } from '../models/Recipient';
-import { CreateNewsletterRequest, UpdateNewsletterRequest } from '../models/Newsletter';
-import {
+import type { CreateRecipientRequest, UpdateRecipientRequest } from '../models/Recipient';
+import type { CreateNewsletterRequest, UpdateNewsletterRequest } from '../models/Newsletter';
+import type {
   ChatSession,
   ChatMessage,
   ChatSessionWithMessages,
@@ -53,7 +53,7 @@ export class DatabaseService {
   static async getChannels(): Promise<Channel[]> {
     const result = await pool.query('SELECT * FROM channels ORDER BY created_at DESC');
     return result.rows.map(row => {
-      let parsedData = {};
+      let parsedData: any = {};
 
       // Handle potentially malformed JSON data
       if (row.data) {
@@ -78,7 +78,7 @@ export class DatabaseService {
     if (result.rows.length === 0) return null;
 
     const row = result.rows[0];
-    let parsedData = {};
+    let parsedData: any = {};
 
     // Handle potentially malformed JSON data
     if (row.data) {
@@ -112,7 +112,7 @@ export class DatabaseService {
     if (!currentRawChannel) return null;
 
     // Parse current data safely, treating malformed JSON as empty
-    let currentParsedData = {};
+    let currentParsedData: any = {};
     if (currentRawChannel.data) {
       try {
         currentParsedData = JSON.parse(currentRawChannel.data);
@@ -185,7 +185,7 @@ export class DatabaseService {
     if (result.rows.length === 0) return null;
 
     const updatedRow = result.rows[0];
-    let parsedData = {};
+    let parsedData: any = {};
 
     // Handle potentially malformed JSON data
     if (updatedRow.data) {
@@ -206,21 +206,21 @@ export class DatabaseService {
 
   static async deleteChannel(id: string): Promise<boolean> {
     const result = await pool.query('DELETE FROM channels WHERE id = $1', [id]);
-    return result.rowCount > 0;
+    return (result.rowCount ?? 0) > 0;
   }
 
   // Media Asset operations
   static async createMediaAsset(assetData: CreateMediaAssetRequest): Promise<MediaAsset> {
     const query = `
-      INSERT INTO media_assets (title, description, image_url, type)
+      INSERT INTO media_assets (title, file_path, type, data)
       VALUES ($1, $2, $3, $4)
       RETURNING *
     `;
     const values = [
       assetData.title,
-      assetData.description || null,
-      assetData.image_url,
-      assetData.type
+      assetData.file_path,
+      assetData.type,
+      JSON.stringify(assetData.data || {})
     ];
 
     const result = await pool.query(query, values);
@@ -256,13 +256,13 @@ export class DatabaseService {
       setParts.push(`title = $${paramCount++}`);
       values.push(assetData.title);
     }
-    if (assetData.description !== undefined) {
-      setParts.push(`description = $${paramCount++}`);
-      values.push(assetData.description);
+    if (assetData.file_path !== undefined) {
+      setParts.push(`file_path = $${paramCount++}`);
+      values.push(assetData.file_path);
     }
-    if (assetData.image_url !== undefined) {
-      setParts.push(`image_url = $${paramCount++}`);
-      values.push(assetData.image_url);
+    if (assetData.data !== undefined) {
+      setParts.push(`data = $${paramCount++}`);
+      values.push(JSON.stringify(assetData.data));
     }
     if (assetData.type !== undefined) {
       setParts.push(`type = $${paramCount++}`);
@@ -287,7 +287,7 @@ export class DatabaseService {
 
   static async deleteMediaAsset(id: string): Promise<boolean> {
     const result = await pool.query('DELETE FROM media_assets WHERE id = $1', [id]);
-    return result.rowCount > 0;
+    return (result.rowCount ?? 0) > 0;
   }
 
   // Article operations
@@ -394,7 +394,7 @@ export class DatabaseService {
 
   static async deleteArticle(id: string): Promise<boolean> {
     const result = await pool.query('DELETE FROM articles WHERE id = $1', [id]);
-    return result.rowCount > 0;
+    return (result.rowCount ?? 0) > 0;
   }
 
   // Post operations
@@ -513,7 +513,7 @@ export class DatabaseService {
 
   static async deletePost(id: string): Promise<boolean> {
     const result = await pool.query('DELETE FROM posts WHERE id = $1', [id]);
-    return result.rowCount > 0;
+    return (result.rowCount ?? 0) > 0;
   }
 
   // Knowledge Source operations
@@ -597,7 +597,7 @@ export class DatabaseService {
 
   static async deleteKnowledgeSource(id: string): Promise<boolean> {
     const result = await pool.query('DELETE FROM knowledge_sources WHERE id = $1', [id]);
-    return result.rowCount > 0;
+    return (result.rowCount ?? 0) > 0;
   }
 
   static async getKnowledgeChunks(sourceId: string): Promise<KnowledgeChunk[]> {
@@ -702,7 +702,7 @@ export class DatabaseService {
 
   static async deleteRecipient(id: string): Promise<boolean> {
     const result = await pool.query('DELETE FROM recipients WHERE id = $1', [id]);
-    return result.rowCount > 0;
+    return (result.rowCount ?? 0) > 0;
   }
 
   // Newsletter operations
@@ -787,7 +787,7 @@ export class DatabaseService {
 
   static async deleteNewsletter(id: string): Promise<boolean> {
     const result = await pool.query('DELETE FROM newsletters WHERE id = $1', [id]);
-    return result.rowCount > 0;
+    return (result.rowCount ?? 0) > 0;
   }
 
   // Chat Session operations
@@ -897,7 +897,7 @@ export class DatabaseService {
 
   static async deleteChatSession(id: string): Promise<boolean> {
     const result = await pool.query('DELETE FROM chat_sessions WHERE id = $1', [id]);
-    return result.rowCount > 0;
+    return (result.rowCount ?? 0) > 0;
   }
 
   // Chat Message operations
@@ -1008,6 +1008,6 @@ export class DatabaseService {
     // Simulate processing delay
     await new Promise(resolve => setTimeout(resolve, 500));
 
-    return responses[randomIndex];
+    return responses[randomIndex]!;
   }
 }

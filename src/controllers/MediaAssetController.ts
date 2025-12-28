@@ -1,6 +1,6 @@
-import { Request, Response } from 'express';
+import type { Request, Response } from 'express';
 import { DatabaseService } from '../services/DatabaseService';
-import { CreateMediaAssetRequest, UpdateMediaAssetRequest } from '../models/MediaAsset';
+import type { CreateMediaAssetRequest, UpdateMediaAssetRequest } from '../models/MediaAsset';
 import logger from '../utils/logger';
 import { getFileUrl } from '../utils/fileUpload';
 
@@ -9,13 +9,13 @@ export class MediaAssetController {
     try {
       const { type } = req.query;
       const assets = await DatabaseService.getMediaAssets(type as string);
-      
+
       // Add URL to each asset
       const assetsWithUrl = assets.map(asset => ({
         ...asset,
         url: getFileUrl(asset.file_path)
       }));
-      
+
       res.json(assetsWithUrl);
     } catch (error) {
       logger.error('Error fetching media assets:', error);
@@ -26,12 +26,13 @@ export class MediaAssetController {
   static async getMediaAssetById(req: Request, res: Response) {
     try {
       const { assetId } = req.params;
+      if (!assetId) return res.status(400).json({ message: 'ID is required' });
       const asset = await DatabaseService.getMediaAssetById(assetId);
-      
+
       if (!asset) {
         return res.status(404).json({ message: 'Media asset not found' });
       }
-      
+
       res.json(asset);
     } catch (error) {
       logger.error('Error fetching media asset:', error);
@@ -88,13 +89,14 @@ export class MediaAssetController {
   static async updateMediaAsset(req: Request, res: Response) {
     try {
       const { assetId } = req.params;
+      if (!assetId) return res.status(400).json({ message: 'ID is required' });
       const assetData: UpdateMediaAssetRequest = { id: assetId, ...req.body };
       const asset = await DatabaseService.updateMediaAsset(assetData);
-      
+
       if (!asset) {
         return res.status(404).json({ message: 'Media asset not found' });
       }
-      
+
       res.json(asset);
     } catch (error) {
       logger.error('Error updating media asset:', error);
@@ -105,12 +107,13 @@ export class MediaAssetController {
   static async deleteMediaAsset(req: Request, res: Response) {
     try {
       const { assetId } = req.params;
-      const deleted = await DatabaseService.deleteMediaAsset(assetId);
-      
-      if (!deleted) {
+      if (!assetId) return res.status(400).json({ message: 'ID is required' });
+      const success = await DatabaseService.deleteMediaAsset(assetId);
+
+      if (!success) {
         return res.status(404).json({ message: 'Media asset not found' });
       }
-      
+
       res.status(204).send();
     } catch (error) {
       logger.error('Error deleting media asset:', error);

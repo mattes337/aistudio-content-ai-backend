@@ -20,6 +20,8 @@ export interface CreatePostRequest {
   platform: string;
   linked_article_id?: string;
   data?: Record<string, any>;
+  preview_file_path?: string;
+  file_status?: FileStatus;
 }
 
 export interface UpdatePostRequest extends Partial<CreatePostRequest> {

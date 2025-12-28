@@ -3,7 +3,7 @@ import path from 'path';
 import fs from 'fs';
 
 // Ensure uploads directory exists
-const uploadsDir = path.join(process.cwd(), 'uploads');
+const uploadsDir = path.join(__dirname, '../../uploads');
 if (!fs.existsSync(uploadsDir)) {
   fs.mkdirSync(uploadsDir, { recursive: true });
 }
@@ -44,6 +44,10 @@ export const uploadMultiple = (fieldName: string, maxCount: number) => upload.ar
 
 // Helper function to get public URL for uploaded files
 export const getFileUrl = (filename: string): string => {
+  if (!filename) return '';
+  if (filename.startsWith('http://') || filename.startsWith('https://') || filename.startsWith('data:')) {
+    return filename;
+  }
   return `/api/files/${filename}`;
 };
 

@@ -1,7 +1,7 @@
 -- Create custom enum types
 CREATE TYPE channel_type AS ENUM ('website', 'instagram', 'facebook', 'x', 'newsletter');
 CREATE TYPE platform_api AS ENUM ('none', 'wordpress', 'instagram_graph', 'facebook_graph', 'x_api', 'email_api');
-CREATE TYPE media_type AS ENUM ('instagram_post', 'article_feature', 'article_inline', 'icon');
+CREATE TYPE media_type AS ENUM ('instagram_post', 'article_feature', 'article_inline', 'icon', 'generic_image');
 CREATE TYPE article_status AS ENUM ('draft', 'approved', 'scheduled', 'published', 'archived');
 CREATE TYPE post_status AS ENUM ('draft', 'approved', 'scheduled', 'published', 'deleted');
 CREATE TYPE newsletter_status AS ENUM ('draft', 'scheduled', 'sent');

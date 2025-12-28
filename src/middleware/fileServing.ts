@@ -1,23 +1,26 @@
-import { Request, Response } from 'express';
+import type { Request, Response } from 'express';
 import path from 'path';
 import fs from 'fs';
 
-const uploadsDir = path.join(process.cwd(), 'uploads');
+const uploadsDir = path.join(__dirname, '../../uploads');
 
 export const serveUploadedFile = (req: Request, res: Response) => {
   try {
     const { filename } = req.params;
+    if (!filename) {
+      return res.status(400).json({ message: 'Filename is required' });
+    }
     const filePath = path.join(uploadsDir, filename);
-    
+
     // Check if file exists
     if (!fs.existsSync(filePath)) {
       return res.status(404).json({ message: 'File not found' });
     }
-    
+
     // Set appropriate headers
     res.setHeader('Content-Type', getContentType(filePath));
     res.setHeader('Cache-Control', 'public, max-age=31536000'); // Cache for 1 year
-    
+
     // Send file
     res.sendFile(filePath);
   } catch (error) {
@@ -43,6 +46,6 @@ function getContentType(filePath: string): string {
     '.mp3': 'audio/mpeg',
     '.wav': 'audio/wav'
   };
-  
+
   return mimeTypes[ext] || 'application/octet-stream';
 }
