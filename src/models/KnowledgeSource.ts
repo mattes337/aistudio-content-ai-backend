@@ -39,4 +39,5 @@ export interface CreateKnowledgeSourceRequest {
 
 export interface UpdateKnowledgeSourceRequest extends Partial<CreateKnowledgeSourceRequest> {
   id: string;
+  file_path?: string;
 }

@@ -3,7 +3,7 @@ export interface Channel {
   name: string;
   url: string;
   type: ChannelType;
-  platformApi: PlatformApi;
+  platform_api: PlatformApi;
   credentials?: Record<string, any>;
   data?: Record<string, any>;
   created_at: Date;
@@ -17,7 +17,7 @@ export interface CreateChannelRequest {
   name: string;
   url: string;
   type: ChannelType;
-  platformApi: PlatformApi;
+  platform_api: PlatformApi;
   credentials?: Record<string, any>;
   data?: Record<string, any>;
 }
@@ -25,3 +25,4 @@ export interface CreateChannelRequest {
 export interface UpdateChannelRequest extends Partial<CreateChannelRequest> {
   id: string;
 }
+

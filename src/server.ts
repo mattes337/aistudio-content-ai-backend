@@ -27,9 +27,9 @@ const app = express();
 // Security middleware
 app.use(helmet());
 app.use(cors({
-  origin: config.nodeEnv === 'production' 
+  origin: config.nodeEnv === 'production'
     ? ['https://your-domain.com'] // Replace with your production domain
-    : ['http://localhost:3000', 'http://localhost:3001'],
+    : ['http://localhost:3000', 'http://localhost:3001', 'http://localhost:5173'],
   credentials: true
 }));
 
@@ -47,7 +47,7 @@ app.use('/api-docs', swaggerUi.serve, (req, res, next) => {
   // Detect reverse proxy headers
   const forwardedProto = req.headers['x-forwarded-proto'] || req.headers['x-forwarded-protocol'];
   const forwardedHost = req.headers['x-forwarded-host'] || req.headers['x-forwarded-server'] || req.get('host');
-  
+
   let baseUrl;
   if (forwardedHost && forwardedProto) {
     // We're behind a reverse proxy
@@ -56,11 +56,11 @@ app.use('/api-docs', swaggerUi.serve, (req, res, next) => {
     // Direct connection
     baseUrl = req.protocol + '://' + req.get('host');
   }
-  
+
   // Create a copy of specs with replaced base URL
   const specsCopy = JSON.parse(JSON.stringify(specs));
   specsCopy.servers[0].url = baseUrl;
-  
+
   // Use custom middleware to serve modified specs
   swaggerUi.setup(specsCopy, {
     explorer: true,
@@ -74,7 +74,7 @@ app.get('/api-docs.json', (req, res) => {
   // Detect reverse proxy headers
   const forwardedProto = req.headers['x-forwarded-proto'] || req.headers['x-forwarded-protocol'];
   const forwardedHost = req.headers['x-forwarded-host'] || req.headers['x-forwarded-server'] || req.get('host');
-  
+
   let baseUrl;
   if (forwardedHost && forwardedProto) {
     // We're behind a reverse proxy
@@ -83,7 +83,7 @@ app.get('/api-docs.json', (req, res) => {
     // Direct connection
     baseUrl = req.protocol + '://' + req.get('host');
   }
-  
+
   let specString = JSON.stringify(specs);
   specString = specString.replace(/{request.baseUrl}/g, baseUrl);
   res.setHeader('Content-Type', 'application/json');
@@ -112,11 +112,11 @@ app.use('*', (req, res) => {
 // Error handling middleware
 app.use((err: any, req: express.Request, res: express.Response, next: express.NextFunction) => {
   logger.error('Unhandled error:', err);
-  
+
   if (res.headersSent) {
     return next(err);
   }
-  
+
   res.status(500).json({
     message: config.nodeEnv === 'production' ? 'Internal server error' : err.message,
     ...(config.nodeEnv !== 'production' && { stack: err.stack })

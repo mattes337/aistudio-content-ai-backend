@@ -1,0 +1,26 @@
+# Use the official Bun image
+FROM oven/bun:1-alpine
+
+# Set working directory
+WORKDIR /app
+
+# Copy package files
+COPY package.json bun.lock* ./
+
+# Install all dependencies (including devDependencies)
+RUN bun install
+
+# Copy source code
+COPY . .
+
+# Create uploads directory
+RUN mkdir -p /app/uploads
+
+# Expose port
+EXPOSE 3000
+
+# Set environment variables
+ENV NODE_ENV=development
+
+# Run in watch mode
+CMD ["bun", "--watch", "src/server.ts"]

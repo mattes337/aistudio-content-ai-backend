@@ -3,20 +3,20 @@ import { Channel, CreateChannelRequest, UpdateChannelRequest } from '../models/C
 import { MediaAsset, CreateMediaAssetRequest, UpdateMediaAssetRequest } from '../models/MediaAsset';
 import { Article, CreateArticleRequest, UpdateArticleRequest } from '../models/Article';
 import { Post, CreatePostRequest, UpdatePostRequest } from '../models/Post';
-import { 
-  KnowledgeSource, 
-  KnowledgeChunk, 
+import {
+  KnowledgeSource,
+  KnowledgeChunk,
   KnowledgeSourceChannel,
-  CreateKnowledgeSourceRequest, 
-  UpdateKnowledgeSourceRequest 
+  CreateKnowledgeSourceRequest,
+  UpdateKnowledgeSourceRequest
 } from '../models/KnowledgeSource';
 import { CreateRecipientRequest, UpdateRecipientRequest } from '../models/Recipient';
 import { CreateNewsletterRequest, UpdateNewsletterRequest } from '../models/Newsletter';
-import { 
-  ChatSession, 
-  ChatMessage, 
+import {
+  ChatSession,
+  ChatMessage,
   ChatSessionWithMessages,
-  CreateChatSessionRequest, 
+  CreateChatSessionRequest,
   UpdateChatSessionRequest,
   CreateChatMessageRequest,
   ChatSessionChannel
@@ -42,7 +42,7 @@ export class DatabaseService {
       channelData.name,
       channelData.url,
       channelData.type,
-      channelData.platformApi,
+      channelData.platform_api,
       jsonString
     ];
 
@@ -138,9 +138,9 @@ export class DatabaseService {
       setParts.push(`type = $${paramCount++}`);
       values.push(channelData.type);
     }
-    if (channelData.platformApi !== undefined) {
+    if (channelData.platform_api !== undefined) {
       setParts.push(`platform_api = $${paramCount++}`);
-      values.push(channelData.platformApi);
+      values.push(channelData.platform_api);
     }
 
     // Handle credentials and data updates
@@ -222,7 +222,7 @@ export class DatabaseService {
       assetData.image_url,
       assetData.type
     ];
-    
+
     const result = await pool.query(query, values);
     return result.rows[0];
   }
@@ -230,14 +230,14 @@ export class DatabaseService {
   static async getMediaAssets(type?: string): Promise<MediaAsset[]> {
     let query = 'SELECT * FROM media_assets';
     let params: any[] = [];
-    
+
     if (type) {
       query += ' WHERE type = $1';
       params.push(type);
     }
-    
+
     query += ' ORDER BY created_at DESC';
-    
+
     const result = await pool.query(query, params);
     return result.rows;
   }
@@ -319,14 +319,14 @@ export class DatabaseService {
       JOIN channels c ON a.channel_id = c.id
     `;
     let params: any[] = [];
-    
+
     if (status) {
       query += ' WHERE a.status = $1';
       params.push(status);
     }
-    
+
     query += ' ORDER BY a.created_at DESC';
-    
+
     const result = await pool.query(query, params);
     return result.rows;
   }
@@ -428,14 +428,14 @@ export class DatabaseService {
       LEFT JOIN articles a ON p.linked_article_id = a.id
     `;
     let params: any[] = [];
-    
+
     if (status) {
       query += ' WHERE p.status = $1';
       params.push(status);
     }
-    
+
     query += ' ORDER BY p.created_at DESC';
-    
+
     const result = await pool.query(query, params);
     return result.rows;
   }
@@ -519,16 +519,18 @@ export class DatabaseService {
   // Knowledge Source operations
   static async createKnowledgeSource(sourceData: CreateKnowledgeSourceRequest): Promise<KnowledgeSource> {
     const query = `
-      INSERT INTO knowledge_sources (name, type, source)
-      VALUES ($1, $2, $3)
+      INSERT INTO knowledge_sources (name, type, source_origin, status, data)
+      VALUES ($1, $2, $3, $4, $5)
       RETURNING *
     `;
     const values = [
       sourceData.name,
       sourceData.type,
-      sourceData.source
+      sourceData.source_origin,
+      'pending',
+      JSON.stringify(sourceData.data || {})
     ];
-    
+
     const result = await pool.query(query, values);
     return result.rows[0];
   }
@@ -564,9 +566,17 @@ export class DatabaseService {
       setParts.push(`type = $${paramCount++}`);
       values.push(sourceData.type);
     }
-    if (sourceData.source !== undefined) {
-      setParts.push(`source = $${paramCount++}`);
-      values.push(sourceData.source);
+    if (sourceData.source_origin !== undefined) {
+      setParts.push(`source_origin = $${paramCount++}`);
+      values.push(sourceData.source_origin);
+    }
+    if (sourceData.file_path !== undefined) {
+      setParts.push(`file_path = $${paramCount++}`);
+      values.push(sourceData.file_path);
+    }
+    if (sourceData.data !== undefined) {
+      setParts.push(`data = $${paramCount++}`);
+      values.push(JSON.stringify(sourceData.data));
     }
 
     setParts.push(`updated_at = $${paramCount++}`);
@@ -609,7 +619,7 @@ export class DatabaseService {
       ORDER BY similarity DESC
       LIMIT $3
     `;
-    
+
     const result = await pool.query(sql, [`[${queryVector.join(',')}]`, threshold, limit]);
     return result.rows;
   }
@@ -626,7 +636,7 @@ export class DatabaseService {
       recipientData.channel_id,
       recipientData.status || 'subscribed'
     ];
-    
+
     const result = await pool.query(query, values);
     return result.rows[0];
   }
@@ -788,7 +798,7 @@ export class DatabaseService {
       RETURNING *
     `;
     const values = [sessionData.title || 'New Chat Session'];
-    
+
     const result = await pool.query(query, values);
     const session = result.rows[0];
 
@@ -812,7 +822,7 @@ export class DatabaseService {
       GROUP BY cs.id
       ORDER BY cs.updated_at DESC
     `;
-    
+
     const result = await pool.query(query);
     return result.rows;
   }
@@ -821,7 +831,7 @@ export class DatabaseService {
     // Get session details
     const sessionQuery = 'SELECT * FROM chat_sessions WHERE id = $1';
     const sessionResult = await pool.query(sessionQuery, [id]);
-    
+
     if (!sessionResult.rows[0]) {
       return null;
     }
@@ -897,21 +907,21 @@ export class DatabaseService {
       VALUES ($1, $2, $3)
       RETURNING *
     `;
-    
+
     const values = [
       messageData.session_id,
       messageData.role,
       messageData.content
     ];
-    
+
     const result = await pool.query(query, values);
-    
+
     // Update the session's updated_at timestamp
     await pool.query(
       'UPDATE chat_sessions SET updated_at = NOW() WHERE id = $1',
       [messageData.session_id]
     );
-    
+
     return result.rows[0];
   }
 
@@ -921,7 +931,7 @@ export class DatabaseService {
       WHERE session_id = $1 
       ORDER BY created_at ASC
     `;
-    
+
     const result = await pool.query(query, [sessionId]);
     return result.rows;
   }
@@ -930,7 +940,7 @@ export class DatabaseService {
   static async addChannelsToSession(sessionId: string, channelIds: string[]): Promise<void> {
     if (channelIds.length === 0) return;
 
-    const values = channelIds.map((channelId, index) => 
+    const values = channelIds.map((channelId, index) =>
       `($1, $${index + 2})`
     ).join(', ');
 
@@ -970,7 +980,7 @@ export class DatabaseService {
       SELECT channel_id FROM chat_session_channels 
       WHERE session_id = $1
     `;
-    
+
     const result = await pool.query(query, [sessionId]);
     return result.rows.map(row => row.channel_id);
   }
@@ -994,10 +1004,10 @@ export class DatabaseService {
 
     // Randomly select a response
     const randomIndex = Math.floor(Math.random() * responses.length);
-    
+
     // Simulate processing delay
     await new Promise(resolve => setTimeout(resolve, 500));
-    
+
     return responses[randomIndex];
   }
 }
