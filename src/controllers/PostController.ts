@@ -1,8 +1,11 @@
-import { Request, Response } from 'express';
+import type { Request, Response } from 'express';
 import { DatabaseService } from '../services/DatabaseService';
-import { CreatePostRequest, UpdatePostRequest } from '../models/Post';
+import type { CreatePostRequest, UpdatePostRequest } from '../models/Post';
 import logger from '../utils/logger';
 import { getFileUrl } from '../utils/fileUpload';
+
+// UUID validation regex
+const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 export class PostController {
   static async getPosts(req: Request, res: Response) {
@@ -19,6 +22,11 @@ export class PostController {
   static async getPostById(req: Request, res: Response) {
     try {
       const { postId } = req.params;
+
+      if (!UUID_REGEX.test(postId)) {
+        return res.status(400).json({ message: 'Invalid post ID format. Expected UUID.' });
+      }
+
       const post = await DatabaseService.getPostById(postId);
       
       if (!post) {
@@ -52,6 +60,11 @@ export class PostController {
   static async updatePost(req: Request, res: Response) {
     try {
       const { postId } = req.params;
+
+      if (!UUID_REGEX.test(postId)) {
+        return res.status(400).json({ message: 'Invalid post ID format. Expected UUID.' });
+      }
+
       const postData: UpdatePostRequest = { id: postId, ...req.body };
       const post = await DatabaseService.updatePost(postData);
       
@@ -69,6 +82,11 @@ export class PostController {
   static async deletePost(req: Request, res: Response) {
     try {
       const { postId } = req.params;
+
+      if (!UUID_REGEX.test(postId)) {
+        return res.status(400).json({ message: 'Invalid post ID format. Expected UUID.' });
+      }
+
       const deleted = await DatabaseService.deletePost(postId);
       
       if (!deleted) {
@@ -89,6 +107,11 @@ export class PostController {
       }
 
       const { postId } = req.params;
+
+      if (!UUID_REGEX.test(postId)) {
+        return res.status(400).json({ message: 'Invalid post ID format. Expected UUID.' });
+      }
+
       const post = await DatabaseService.getPostById(postId);
 
       if (!post) {

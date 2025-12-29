@@ -68,41 +68,56 @@ export class MigrationRunner {
 
   async runMigrations(): Promise<void> {
     const pendingMigrations = await this.getPendingMigrations();
-    
+
     if (pendingMigrations.length === 0) {
       console.log('No pending migrations to apply.');
       return;
     }
 
     console.log(`Applying ${pendingMigrations.length} migration(s)...`);
-    
-    const client = await this.pool.connect();
-    
-    try {
-      await client.query('BEGIN');
-      
-      for (const migration of pendingMigrations) {
-        console.log(`Applying migration: ${migration.fileName}`);
-        
-        try {
+
+    for (const migration of pendingMigrations) {
+      console.log(`Applying migration: ${migration.fileName}`);
+
+      // Check if migration contains ALTER TYPE ADD VALUE (can't run in transaction)
+      const requiresNoTransaction = /ALTER\s+TYPE\s+\w+\s+ADD\s+VALUE/i.test(migration.sql);
+
+      const client = await this.pool.connect();
+
+      try {
+        if (requiresNoTransaction) {
+          // Run without transaction for ALTER TYPE ADD VALUE
+          console.log(`  (running outside transaction - contains ALTER TYPE ADD VALUE)`);
           await client.query(migration.sql);
           await client.query(
             'INSERT INTO schema_migrations (migration_name) VALUES ($1)',
             [migration.fileName]
           );
-          console.log(`✓ Migration ${migration.fileName} applied successfully`);
-        } catch (error) {
-          console.error(`✗ Failed to apply migration ${migration.fileName}:`, error);
-          await client.query('ROLLBACK');
-          throw error;
+        } else {
+          // Run with transaction for normal migrations
+          await client.query('BEGIN');
+          try {
+            await client.query(migration.sql);
+            await client.query(
+              'INSERT INTO schema_migrations (migration_name) VALUES ($1)',
+              [migration.fileName]
+            );
+            await client.query('COMMIT');
+          } catch (error) {
+            await client.query('ROLLBACK');
+            throw error;
+          }
         }
+        console.log(`✓ Migration ${migration.fileName} applied successfully`);
+      } catch (error) {
+        console.error(`✗ Failed to apply migration ${migration.fileName}:`, error);
+        throw error;
+      } finally {
+        client.release();
       }
-      
-      await client.query('COMMIT');
-      console.log('All migrations applied successfully.');
-    } finally {
-      client.release();
     }
+
+    console.log('All migrations applied successfully.');
   }
 
   async rollbackMigration(migrationName: string): Promise<void> {
