@@ -4,11 +4,11 @@ FROM oven/bun:1.3.2-alpine
 # Set working directory
 WORKDIR /app
 
-# Copy package files
-COPY package.json bun.lock ./
+# Copy package files (only package.json, let bun generate fresh lockfile)
+COPY package.json ./
 
-# Install dependencies (disable frozen lockfile explicitly)
-RUN BUN_FROZEN_LOCKFILE=0 bun install --production
+# Install dependencies
+RUN bun install --production
 
 # Copy source code
 COPY . .
