@@ -9,7 +9,6 @@ import {
   validateGenerateImageLenient,
   validateEditImageLenient,
   validateGenerateBulkLenient,
-  validateSearchKnowledgeLenient
 } from '../middleware/validation';
 
 const router = Router();
@@ -310,59 +309,6 @@ router.post('/edit/image', validateEditImageLenient, AIController.editImage);
  */
 router.post('/generate/bulk', validateGenerateBulkLenient, AIController.generateBulk);
 
-/**
- * @swagger
- * /api/ai/search/knowledge:
- *   post:
- *     summary: Search knowledge base
- *     tags: [AI Generation]
- *     security:
- *       - bearerAuth: []
- *     requestBody:
- *       required: true
- *       content:
- *         application/json:
- *           schema:
- *             type: object
- *             required: [query]
- *             properties:
- *               query:
- *                 type: string
- *                 description: Search query
- *               limit:
- *                 type: number
- *                 default: 10
- *                 description: Maximum number of results
- *               source_type:
- *                 type: array
- *                 items:
- *                   type: string
- *                 description: Filter by knowledge source types
- *     responses:
- *       200:
- *         description: Knowledge search completed successfully
- *         content:
- *           application/json:
- *             schema:
- *               type: object
- *               properties:
- *                 results:
- *                   type: array
- *                   items:
- *                     type: object
- *                     properties:
- *                       content:
- *                         type: string
- *                       source:
- *                         type: string
- *                       relevance_score:
- *                         type: number
- *                   description: Search results
- *       500:
- *         description: Internal server error
- */
-router.post('/search/knowledge', validateSearchKnowledgeLenient, AIController.searchKnowledge);
-
 // ============== New Gemini Endpoints ==============
 
 /**
@@ -418,6 +364,55 @@ router.post('/search/knowledge', validateSearchKnowledgeLenient, AIController.se
  *         description: Internal server error
  */
 router.post('/refine-content', AIController.refineContent);
+
+/**
+ * @swagger
+ * /api/ai/refine-content/stream:
+ *   post:
+ *     summary: Refine content with AI assistance (streaming SSE response)
+ *     tags: [AI Generation]
+ *     security:
+ *       - bearerAuth: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required: [instruction, type]
+ *             properties:
+ *               currentContent:
+ *                 type: string
+ *                 description: Current content to refine
+ *               instruction:
+ *                 type: string
+ *                 description: User instruction for refinement
+ *               type:
+ *                 type: string
+ *                 enum: [article, post, newsletter]
+ *                 description: Content type
+ *               history:
+ *                 type: array
+ *                 items:
+ *                   type: object
+ *                   properties:
+ *                     role:
+ *                       type: string
+ *                       enum: [user, assistant]
+ *                     text:
+ *                       type: string
+ *                 description: Chat history for context
+ *     responses:
+ *       200:
+ *         description: Content refined successfully (SSE stream)
+ *         content:
+ *           text/event-stream:
+ *             schema:
+ *               type: string
+ *       500:
+ *         description: Internal server error
+ */
+router.post('/refine-content/stream', AIController.refineContentStream);
 
 /**
  * @swagger
@@ -994,8 +989,6 @@ router.post('/knowledge/ask', AIController.askKnowledgeBase);
  *                   type: object
  *                   properties:
  *                     gemini:
- *                       type: boolean
- *                     claude_agent:
  *                       type: boolean
  *                     open_notebook:
  *                       type: boolean

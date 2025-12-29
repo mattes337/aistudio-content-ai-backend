@@ -1,7 +1,5 @@
 import { Request, Response } from 'express';
-import { AIService } from '../services/AIService';
-import { GeminiService } from '../services/GeminiService';
-import { ClaudeAgentService } from '../services/ClaudeAgentService';
+import { AIService } from '../services/ai-service';
 import { OpenNotebookService } from '../services/OpenNotebookService';
 import logger from '../utils/logger';
 
@@ -56,7 +54,7 @@ export class AIController {
       if (!prompt) {
         return res.status(400).json({ message: 'Prompt is required' });
       }
-      const details = await AIService.generatePostDetails(prompt, currentCaption);
+      const details = await AIService.generatePostDetailsLegacy(prompt, currentCaption);
       res.json(details);
     } catch (error) {
       logger.error('Error generating post details:', error);
@@ -84,7 +82,7 @@ export class AIController {
       if (!prompt || !base64ImageData || !mimeType) {
         return res.status(400).json({ message: 'Prompt, image data, and mime type are required' });
       }
-      const imageData = await AIService.editImage(prompt, base64ImageData, mimeType);
+      const imageData = await AIService.editImage(base64ImageData, mimeType, prompt);
       res.json(imageData);
     } catch (error) {
       logger.error('Error editing image:', error);
@@ -106,21 +104,6 @@ export class AIController {
     }
   }
 
-  static async searchKnowledge(req: Request, res: Response) {
-    try {
-      const { query, limit, threshold } = req.body;
-      if (!query) {
-        return res.status(400).json({ message: 'Query is required' });
-      }
-      const embedding = await AIService.getEmbedding(query);
-      const results = await AIService.searchSimilarContent(embedding, limit || 10, threshold || 0.7);
-      res.json(results);
-    } catch (error) {
-      logger.error('Error searching knowledge:', error);
-      res.status(500).json({ message: 'Internal server error' });
-    }
-  }
-
   // ============== New Gemini Endpoints ==============
 
   static async refineContent(req: Request, res: Response) {
@@ -133,16 +116,40 @@ export class AIController {
         return res.status(400).json({ message: 'Valid type (article, post, newsletter) is required' });
       }
 
-      const result = await GeminiService.refineContent(
-        currentContent || '',
-        instruction,
-        type,
-        history || []
-      );
+      const result = await AIService.refineContent(currentContent || '', instruction, type, history || []);
       res.json(result);
     } catch (error) {
       logger.error('Error refining content:', error);
       res.status(500).json({ message: 'Internal server error' });
+    }
+  }
+
+  static async refineContentStream(req: Request, res: Response) {
+    try {
+      const { currentContent, instruction, type, history } = req.body;
+      if (!instruction) {
+        return res.status(400).json({ message: 'Instruction is required' });
+      }
+      if (!type || !['article', 'post', 'newsletter'].includes(type)) {
+        return res.status(400).json({ message: 'Valid type (article, post, newsletter) is required' });
+      }
+
+      res.setHeader('Content-Type', 'text/event-stream');
+      res.setHeader('Cache-Control', 'no-cache');
+      res.setHeader('Connection', 'keep-alive');
+
+      for await (const chunk of AIService.refineContentStream(currentContent || '', instruction, type, history || [])) {
+        res.write(`data: ${JSON.stringify(chunk)}\n\n`);
+      }
+      res.end();
+    } catch (error) {
+      logger.error('Error streaming refine content:', error);
+      if (!res.headersSent) {
+        res.status(500).json({ message: 'Internal server error' });
+      } else {
+        res.write(`data: ${JSON.stringify({ type: 'error', error: 'Internal server error' })}\n\n`);
+        res.end();
+      }
     }
   }
 
@@ -152,7 +159,7 @@ export class AIController {
       if (!content) {
         return res.status(400).json({ message: 'Content is required' });
       }
-      const result = await GeminiService.generateTitle(content);
+      const result = await AIService.generateTitle(content);
       res.json(result);
     } catch (error) {
       logger.error('Error generating title:', error);
@@ -166,7 +173,7 @@ export class AIController {
       if (!content) {
         return res.status(400).json({ message: 'Content is required' });
       }
-      const result = await GeminiService.generateSubject(content);
+      const result = await AIService.generateSubject(content);
       res.json(result);
     } catch (error) {
       logger.error('Error generating subject:', error);
@@ -180,7 +187,7 @@ export class AIController {
       if (!content || !title) {
         return res.status(400).json({ message: 'Content and title are required' });
       }
-      const result = await GeminiService.generateMetadata(content, title);
+      const result = await AIService.generateMetadata(content, title);
       res.json(result);
     } catch (error) {
       logger.error('Error generating metadata:', error);
@@ -194,7 +201,7 @@ export class AIController {
       if (!content) {
         return res.status(400).json({ message: 'Content is required' });
       }
-      const result = await GeminiService.generateExcerpt(content);
+      const result = await AIService.generateExcerpt(content);
       res.json(result);
     } catch (error) {
       logger.error('Error generating excerpt:', error);
@@ -208,7 +215,7 @@ export class AIController {
       if (!content) {
         return res.status(400).json({ message: 'Content is required' });
       }
-      const result = await GeminiService.generatePreviewText(content);
+      const result = await AIService.generatePreviewText(content);
       res.json(result);
     } catch (error) {
       logger.error('Error generating preview text:', error);
@@ -222,7 +229,7 @@ export class AIController {
       if (!prompt) {
         return res.status(400).json({ message: 'Prompt is required' });
       }
-      const result = await GeminiService.generatePostDetails(prompt, currentCaption || '');
+      const result = await AIService.generatePostDetails(prompt, currentCaption || '');
       res.json(result);
     } catch (error) {
       logger.error('Error generating post details:', error);
@@ -236,7 +243,7 @@ export class AIController {
       if (!prompt) {
         return res.status(400).json({ message: 'Prompt is required' });
       }
-      const result = await GeminiService.generateImage(prompt, aspectRatio || '1:1');
+      const result = await AIService.generateImage(prompt, aspectRatio || '1:1');
       res.json(result);
     } catch (error) {
       logger.error('Error generating image:', error);
@@ -250,7 +257,7 @@ export class AIController {
       if (!base64ImageData || !mimeType || !prompt) {
         return res.status(400).json({ message: 'Base64 image data, mime type, and prompt are required' });
       }
-      const result = await GeminiService.editImage(base64ImageData, mimeType, prompt);
+      const result = await AIService.editImage(base64ImageData, mimeType, prompt);
       res.json(result);
     } catch (error) {
       logger.error('Error editing image:', error);
@@ -267,7 +274,7 @@ export class AIController {
       if (!type || !['article', 'post', 'newsletter'].includes(type)) {
         return res.status(400).json({ message: 'Valid type (article, post, newsletter) is required' });
       }
-      const result = await GeminiService.inferMetadata(content, type);
+      const result = await AIService.inferMetadata(content, type);
       res.json(result);
     } catch (error) {
       logger.error('Error inferring metadata:', error);
@@ -275,7 +282,7 @@ export class AIController {
     }
   }
 
-  // ============== Claude Agent Endpoints ==============
+  // ============== Agent Endpoints ==============
 
   static async researchQuery(req: Request, res: Response) {
     try {
@@ -283,7 +290,7 @@ export class AIController {
       if (!query) {
         return res.status(400).json({ message: 'Query is required' });
       }
-      const result = await ClaudeAgentService.researchQuery({
+      const result = await AIService.researchQuery({
         query,
         channelId,
         history,
@@ -305,10 +312,10 @@ export class AIController {
       const validTypes = ['create_article_draft', 'create_post_draft', 'create_media_draft'];
       if (!validTypes.includes(type)) {
         return res.status(400).json({
-          message: `Invalid task type. Valid types: ${validTypes.join(', ')}`
+          message: `Invalid task type. Valid types: ${validTypes.join(', ')}`,
         });
       }
-      const result = await ClaudeAgentService.executeTask({ type, params: params || {} });
+      const result = await AIService.executeTask({ type, params: params || {} });
       res.json(result);
     } catch (error) {
       logger.error('Error executing agent task:', error);
@@ -360,16 +367,15 @@ export class AIController {
 
   static async healthCheck(req: Request, res: Response) {
     try {
-      const [openNotebookHealthy, claudeAgentHealthy] = await Promise.all([
+      const [openNotebookHealthy, geminiHealthy] = await Promise.all([
         OpenNotebookService.healthCheck().catch(() => false),
-        ClaudeAgentService.healthCheck().catch(() => false),
+        AIService.healthCheck().catch(() => false),
       ]);
 
       res.json({
         status: 'ok',
         services: {
-          gemini: !!process.env.GEMINI_API_KEY,
-          claude_agent: claudeAgentHealthy,
+          gemini: geminiHealthy,
           open_notebook: openNotebookHealthy,
         },
       });
