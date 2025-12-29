@@ -7,8 +7,8 @@ WORKDIR /app
 # Copy package files
 COPY package.json ./
 
-# Install all dependencies (force fresh install)
-RUN rm -rf node_modules && bun install --verbose
+# Install all dependencies
+RUN bun install && bun add ai @ai-sdk/google
 
 # Copy source code
 COPY . .
