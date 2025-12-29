@@ -8,7 +8,7 @@ WORKDIR /app
 COPY package.json ./
 
 # Install dependencies
-RUN bun install --production
+RUN bun install
 
 # Copy source code
 COPY . .
