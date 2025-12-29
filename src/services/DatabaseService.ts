@@ -536,8 +536,8 @@ export class DatabaseService {
   // Knowledge Source operations
   static async createKnowledgeSource(sourceData: CreateKnowledgeSourceRequest): Promise<KnowledgeSource> {
     const query = `
-      INSERT INTO knowledge_sources (name, type, source_origin, status, data)
-      VALUES ($1, $2, $3, $4, $5)
+      INSERT INTO knowledge_sources (name, type, source_origin, status, folder_path, data)
+      VALUES ($1, $2, $3, $4, $5, $6)
       RETURNING *
     `;
     const values = [
@@ -545,6 +545,7 @@ export class DatabaseService {
       sourceData.type,
       sourceData.source_origin,
       'pending',
+      sourceData.folder_path || null,
       JSON.stringify(sourceData.data || {})
     ];
 
@@ -552,16 +553,30 @@ export class DatabaseService {
     return result.rows[0];
   }
 
-  static async getKnowledgeSources(): Promise<KnowledgeSource[]> {
-    const result = await pool.query(`
-      SELECT ks.*, 
+  static async getKnowledgeSources(folderPath?: string): Promise<KnowledgeSource[]> {
+    let query = `
+      SELECT ks.*,
              COUNT(kc.id) as chunk_count,
              SUM(CASE WHEN kc.embedding_status = 'complete' THEN 1 ELSE 0 END) as embedded_count
       FROM knowledge_sources ks
       LEFT JOIN knowledge_chunks kc ON ks.id = kc.knowledge_source_id
-      GROUP BY ks.id
-      ORDER BY ks.created_at DESC
-    `);
+    `;
+
+    const values: any[] = [];
+
+    if (folderPath !== undefined) {
+      // Filter by exact folder path (null for root/uncategorized items)
+      if (folderPath === '' || folderPath === null) {
+        query += ' WHERE ks.folder_path IS NULL';
+      } else {
+        query += ' WHERE ks.folder_path = $1';
+        values.push(folderPath);
+      }
+    }
+
+    query += ' GROUP BY ks.id ORDER BY ks.created_at DESC';
+
+    const result = await pool.query(query, values);
     return result.rows;
   }
 
@@ -590,6 +605,10 @@ export class DatabaseService {
     if (sourceData.file_path !== undefined) {
       setParts.push(`file_path = $${paramCount++}`);
       values.push(sourceData.file_path);
+    }
+    if (sourceData.folder_path !== undefined) {
+      setParts.push(`folder_path = $${paramCount++}`);
+      values.push(sourceData.folder_path || null);
     }
     if (sourceData.data !== undefined) {
       setParts.push(`data = $${paramCount++}`);
@@ -623,6 +642,19 @@ export class DatabaseService {
       [sourceId]
     );
     return result.rows;
+  }
+
+  static async getKnowledgeSourceFolders(): Promise<{ folder_path: string | null; item_count: number }[]> {
+    const result = await pool.query(`
+      SELECT folder_path, COUNT(*) as item_count
+      FROM knowledge_sources
+      GROUP BY folder_path
+      ORDER BY folder_path NULLS FIRST
+    `);
+    return result.rows.map(row => ({
+      folder_path: row.folder_path,
+      item_count: parseInt(row.item_count, 10)
+    }));
   }
 
   // Vector search operations

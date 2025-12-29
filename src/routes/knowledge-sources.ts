@@ -16,6 +16,12 @@ router.use(authenticateToken);
  *     tags: [Knowledge Sources]
  *     security:
  *       - bearerAuth: []
+ *     parameters:
+ *       - in: query
+ *         name: folder_path
+ *         schema:
+ *           type: string
+ *         description: Filter by folder path. Use empty string for uncategorized items.
  *     responses:
  *       200:
  *         description: List of knowledge sources
@@ -29,6 +35,28 @@ router.use(authenticateToken);
  *         description: Internal server error
  */
 router.get('/', KnowledgeSourceController.getKnowledgeSources);
+
+/**
+ * @swagger
+ * /api/knowledge-sources/folders:
+ *   get:
+ *     summary: Get folder tree structure
+ *     tags: [Knowledge Sources]
+ *     security:
+ *       - bearerAuth: []
+ *     responses:
+ *       200:
+ *         description: Folder tree structure with item counts
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: array
+ *               items:
+ *                 $ref: '#/components/schemas/FolderTreeNode'
+ *       500:
+ *         description: Internal server error
+ */
+router.get('/folders', KnowledgeSourceController.getFolderTree);
 
 /**
  * @swagger
