@@ -43,6 +43,8 @@ services:
       sh -c "
         echo 'Waiting for database to be ready...'
         sleep 15
+        echo 'Installing dependencies...'
+        bun install
         echo 'Running database migrations...'
         bun run migration:run
         echo 'Starting backend...'

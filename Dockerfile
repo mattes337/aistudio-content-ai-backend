@@ -1,14 +1,14 @@
-# Use the official Bun image (pinned to avoid lockfile format mismatches)
-FROM oven/bun:1.3.2-alpine
+# Use the official Bun image
+FROM oven/bun:1-alpine
 
 # Set working directory
 WORKDIR /app
 
 # Copy package files
-COPY package.json ./
+COPY package.json bun.lock ./
 
-# Install all dependencies
-RUN bun install && bun add ai @ai-sdk/google
+# Install dependencies
+RUN bun install
 
 # Copy source code
 COPY . .
