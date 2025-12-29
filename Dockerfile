@@ -1,5 +1,5 @@
-# Use the official Bun image
-from oven/bun:1-alpine
+# Use the official Bun image (pinned to avoid lockfile format mismatches)
+FROM oven/bun:1.3.2-alpine
 
 # Set working directory
 WORKDIR /app
