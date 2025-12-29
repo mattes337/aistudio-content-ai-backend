@@ -4,11 +4,11 @@ FROM oven/bun:1.3.2-alpine
 # Set working directory
 WORKDIR /app
 
-# Copy package files (only package.json, let bun generate fresh lockfile)
+# Copy package files
 COPY package.json ./
 
-# Install dependencies
-RUN bun install
+# Install all dependencies (force fresh install)
+RUN rm -rf node_modules && bun install --verbose
 
 # Copy source code
 COPY . .
