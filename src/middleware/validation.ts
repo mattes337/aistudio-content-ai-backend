@@ -79,14 +79,14 @@ const mediaAssetSchema = Joi.object({
 const articleSchema = Joi.object({
   title: Joi.string().min(1).required(),
   status: Joi.string().valid('draft', 'approved', 'scheduled', 'published', 'archived').optional(),
-  publish_date: Joi.date().optional(),
+  publish_date: Joi.date().allow(null).optional(),
   channel_id: Joi.string().uuid().required(),
   data: Joi.object().optional()
 });
 
 const postSchema = Joi.object({
   status: Joi.string().valid('draft', 'approved', 'scheduled', 'published', 'deleted').optional(),
-  publish_date: Joi.date().optional(),
+  publish_date: Joi.date().allow(null).optional(),
   platform: Joi.string().max(50).required(),
   linked_article_id: Joi.string().uuid().optional(),
   data: Joi.object().optional()
@@ -131,7 +131,7 @@ const editImageSchema = Joi.object({
 const newsletterSchema = Joi.object({
   subject: Joi.string().min(1).required(),
   status: Joi.string().valid('draft', 'scheduled', 'sent').optional(),
-  publish_date: Joi.date().optional(),
+  publish_date: Joi.date().allow(null).optional(),
   channel_id: Joi.string().uuid().required(),
   data: Joi.object().optional()
 });

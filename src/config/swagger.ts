@@ -290,7 +290,8 @@ const options = {
             publish_date: {
               type: 'string',
               format: 'date-time',
-              description: 'Article publish date'
+              nullable: true,
+              description: 'Article publish date (can be null if not yet scheduled)'
             },
             author: {
               type: 'string',
@@ -406,7 +407,8 @@ const options = {
             publish_date: {
               type: 'string',
               format: 'date-time',
-              description: 'Article publish date'
+              nullable: true,
+              description: 'Article publish date (can be null if not yet scheduled)'
             },
             author: {
               type: 'string',
@@ -473,7 +475,8 @@ const options = {
             publish_date: {
               type: 'string',
               format: 'date-time',
-              description: 'Article publish date'
+              nullable: true,
+              description: 'Article publish date (can be null if not yet scheduled)'
             },
             author: {
               type: 'string',
@@ -540,7 +543,8 @@ const options = {
             publish_date: {
               type: 'string',
               format: 'date-time',
-              description: 'Post publish date'
+              nullable: true,
+              description: 'Post publish date (can be null if not yet scheduled)'
             },
             platform: {
               type: 'string',
@@ -628,7 +632,8 @@ const options = {
             publish_date: {
               type: 'string',
               format: 'date-time',
-              description: 'Post publish date'
+              nullable: true,
+              description: 'Post publish date (can be null if not yet scheduled)'
             },
             platform: {
               type: 'string',
@@ -700,7 +705,8 @@ const options = {
             publish_date: {
               type: 'string',
               format: 'date-time',
-              description: 'Post publish date'
+              nullable: true,
+              description: 'Post publish date (can be null if not yet scheduled)'
             },
             platform: {
               type: 'string',
@@ -964,7 +970,8 @@ const options = {
             publish_date: {
               type: 'string',
               format: 'date-time',
-              description: 'Date when newsletter is scheduled to be sent'
+              nullable: true,
+              description: 'Date when newsletter is scheduled to be sent (can be null if not yet scheduled)'
             },
             channel_id: {
               type: 'string',
@@ -1019,7 +1026,8 @@ const options = {
             publish_date: {
               type: 'string',
               format: 'date-time',
-              description: 'Date when newsletter is scheduled to be sent'
+              nullable: true,
+              description: 'Date when newsletter is scheduled to be sent (can be null if not yet scheduled)'
             },
             channel_id: {
               type: 'string',
@@ -1058,7 +1066,8 @@ const options = {
             publish_date: {
               type: 'string',
               format: 'date-time',
-              description: 'Date when newsletter is scheduled to be sent'
+              nullable: true,
+              description: 'Date when newsletter is scheduled to be sent (can be null if not yet scheduled)'
             },
             channel_id: {
               type: 'string',
