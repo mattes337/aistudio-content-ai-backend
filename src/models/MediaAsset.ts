@@ -9,7 +9,7 @@ export interface MediaAsset {
   updated_at: Date;
 }
 
-export type MediaType = 'instagram_post' | 'article_feature' | 'article_inline' | 'icon';
+export type MediaType = 'instagram_post' | 'article_feature' | 'article_inline' | 'icon' | 'generic_image';
 export type FileStatus = 'active' | 'uploading' | 'missing' | 'deleted';
 
 export interface CreateMediaAssetRequest {

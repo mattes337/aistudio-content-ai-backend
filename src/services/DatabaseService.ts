@@ -55,13 +55,18 @@ export class DatabaseService {
     return result.rows.map(row => {
       let parsedData: any = {};
 
-      // Handle potentially malformed JSON data
+      // Handle potentially malformed JSON data or already-parsed JSONB
       if (row.data) {
-        try {
-          parsedData = JSON.parse(row.data);
-        } catch (error) {
-          console.warn(`Invalid JSON data for channel ${row.id}, using empty object. Data: "${row.data}"`, error);
-          parsedData = {};
+        if (typeof row.data === 'object') {
+          // PostgreSQL JSONB columns are automatically parsed by pg driver
+          parsedData = row.data;
+        } else if (typeof row.data === 'string') {
+          try {
+            parsedData = JSON.parse(row.data);
+          } catch (error) {
+            console.warn(`Invalid JSON data for channel ${row.id}, using empty object. Data: "${row.data}"`, error);
+            parsedData = {};
+          }
         }
       }
 
@@ -80,13 +85,17 @@ export class DatabaseService {
     const row = result.rows[0];
     let parsedData: any = {};
 
-    // Handle potentially malformed JSON data
+    // Handle potentially malformed JSON data or already-parsed JSONB
     if (row.data) {
-      try {
-        parsedData = JSON.parse(row.data);
-      } catch (error) {
-        console.warn(`Invalid JSON data for channel ${id}, using empty object. Data: "${row.data}"`, error);
-        parsedData = {};
+      if (typeof row.data === 'object') {
+        parsedData = row.data;
+      } else if (typeof row.data === 'string') {
+        try {
+          parsedData = JSON.parse(row.data);
+        } catch (error) {
+          console.warn(`Invalid JSON data for channel ${id}, using empty object. Data: "${row.data}"`, error);
+          parsedData = {};
+        }
       }
     }
 
@@ -111,14 +120,18 @@ export class DatabaseService {
     const currentRawChannel = await this.getRawChannelById(channelData.id);
     if (!currentRawChannel) return null;
 
-    // Parse current data safely, treating malformed JSON as empty
+    // Parse current data safely, handling already-parsed JSONB or malformed JSON
     let currentParsedData: any = {};
     if (currentRawChannel.data) {
-      try {
-        currentParsedData = JSON.parse(currentRawChannel.data);
-      } catch (error) {
-        console.warn(`Malformed JSON data found in database for channel ${channelData.id}, treating as empty object. Data: "${currentRawChannel.data}"`);
-        currentParsedData = {};
+      if (typeof currentRawChannel.data === 'object') {
+        currentParsedData = currentRawChannel.data;
+      } else if (typeof currentRawChannel.data === 'string') {
+        try {
+          currentParsedData = JSON.parse(currentRawChannel.data);
+        } catch (error) {
+          console.warn(`Malformed JSON data found in database for channel ${channelData.id}, treating as empty object. Data: "${currentRawChannel.data}"`);
+          currentParsedData = {};
+        }
       }
     }
 
@@ -187,13 +200,17 @@ export class DatabaseService {
     const updatedRow = result.rows[0];
     let parsedData: any = {};
 
-    // Handle potentially malformed JSON data
+    // Handle potentially malformed JSON data or already-parsed JSONB
     if (updatedRow.data) {
-      try {
-        parsedData = JSON.parse(updatedRow.data);
-      } catch (error) {
-        console.warn(`Invalid JSON data for updated channel ${channelData.id}, using empty object. Data: "${updatedRow.data}"`, error);
-        parsedData = {};
+      if (typeof updatedRow.data === 'object') {
+        parsedData = updatedRow.data;
+      } else if (typeof updatedRow.data === 'string') {
+        try {
+          parsedData = JSON.parse(updatedRow.data);
+        } catch (error) {
+          console.warn(`Invalid JSON data for updated channel ${channelData.id}, using empty object. Data: "${updatedRow.data}"`, error);
+          parsedData = {};
+        }
       }
     }
 

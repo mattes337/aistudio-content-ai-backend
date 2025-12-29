@@ -764,9 +764,9 @@ const options = {
               enum: ['text', 'website', 'pdf', 'instagram', 'youtube', 'video_file', 'audio_file'],
               description: 'Knowledge source type'
             },
-            source: {
+            source_origin: {
               type: 'string',
-              description: 'Knowledge source content or URL'
+              description: 'Knowledge source origin (URL for websites, original filename for uploads)'
             },
             status: {
               type: 'string',
@@ -817,7 +817,7 @@ const options = {
         },
         CreateKnowledgeSourceRequest: {
           type: 'object',
-          required: ['name', 'type', 'source'],
+          required: ['name', 'type', 'source_origin'],
           properties: {
             name: {
               type: 'string',
@@ -828,9 +828,9 @@ const options = {
               enum: ['text', 'website', 'pdf', 'instagram', 'youtube', 'video_file', 'audio_file'],
               description: 'Knowledge source type'
             },
-            source: {
+            source_origin: {
               type: 'string',
-              description: 'Knowledge source content or URL'
+              description: 'Knowledge source origin (URL for websites, original filename for uploads)'
             }
           }
         },
@@ -846,9 +846,9 @@ const options = {
               enum: ['text', 'website', 'pdf', 'instagram', 'youtube', 'video_file', 'audio_file'],
               description: 'Knowledge source type'
             },
-            source: {
+            source_origin: {
               type: 'string',
-              description: 'Knowledge source content or URL'
+              description: 'Knowledge source origin (URL for websites, original filename for uploads)'
             }
           }
         },

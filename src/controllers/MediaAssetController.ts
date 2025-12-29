@@ -4,6 +4,9 @@ import type { CreateMediaAssetRequest, UpdateMediaAssetRequest } from '../models
 import logger from '../utils/logger';
 import { getFileUrl } from '../utils/fileUpload';
 
+// UUID validation regex
+const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
 export class MediaAssetController {
   static async getMediaAssets(req: Request, res: Response) {
     try {
@@ -27,6 +30,12 @@ export class MediaAssetController {
     try {
       const { assetId } = req.params;
       if (!assetId) return res.status(400).json({ message: 'ID is required' });
+
+      // Validate UUID format
+      if (!UUID_REGEX.test(assetId)) {
+        return res.status(400).json({ message: 'Invalid asset ID format. Expected UUID.' });
+      }
+
       const asset = await DatabaseService.getMediaAssetById(assetId);
 
       if (!asset) {
@@ -90,6 +99,12 @@ export class MediaAssetController {
     try {
       const { assetId } = req.params;
       if (!assetId) return res.status(400).json({ message: 'ID is required' });
+
+      // Validate UUID format
+      if (!UUID_REGEX.test(assetId)) {
+        return res.status(400).json({ message: 'Invalid asset ID format. Expected UUID.' });
+      }
+
       const assetData: UpdateMediaAssetRequest = { id: assetId, ...req.body };
       const asset = await DatabaseService.updateMediaAsset(assetData);
 
@@ -108,6 +123,12 @@ export class MediaAssetController {
     try {
       const { assetId } = req.params;
       if (!assetId) return res.status(400).json({ message: 'ID is required' });
+
+      // Validate UUID format to prevent database errors with local/temporary IDs
+      if (!UUID_REGEX.test(assetId)) {
+        return res.status(400).json({ message: 'Invalid asset ID format. Expected UUID.' });
+      }
+
       const success = await DatabaseService.deleteMediaAsset(assetId);
 
       if (!success) {

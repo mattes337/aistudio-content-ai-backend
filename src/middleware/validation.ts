@@ -71,7 +71,7 @@ const channelSchema = Joi.object({
 
 const mediaAssetSchema = Joi.object({
   title: Joi.string().min(1).max(255).required(),
-  type: Joi.string().valid('instagram_post', 'article_feature', 'article_inline', 'icon').required(),
+  type: Joi.string().valid('instagram_post', 'article_feature', 'article_inline', 'icon', 'generic_image').required(),
   file_path: Joi.string().required(),
   data: Joi.object().optional()
 });
