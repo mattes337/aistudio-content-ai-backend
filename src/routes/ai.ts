@@ -776,9 +776,6 @@ router.post('/infer-metadata', AIController.inferMetadata);
  *               channelId:
  *                 type: string
  *                 description: Optional channel ID for context filtering
- *               notebookId:
- *                 type: string
- *                 description: Optional notebook ID for knowledge base
  *               history:
  *                 type: array
  *                 items:

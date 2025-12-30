@@ -39,6 +39,14 @@ export interface AskResponse {
   question: string;
 }
 
+export interface Notebook {
+  id: string;
+  name: string;
+  description?: string;
+  created_at: string;
+  updated_at: string;
+}
+
 export interface ChatSession {
   id: string;
   notebook_id: string;
@@ -98,6 +106,21 @@ export class OpenNotebookService {
       logger.error(`Open Notebook request failed: ${endpoint}`, error);
       throw error;
     }
+  }
+
+  /**
+   * Get all notebooks
+   */
+  static async getNotebooks(): Promise<Notebook[]> {
+    return this.makeRequest<Notebook[]>('/notebooks');
+  }
+
+  /**
+   * Find a notebook by name (case-insensitive)
+   */
+  static async findNotebookByName(name: string): Promise<Notebook | null> {
+    const notebooks = await this.getNotebooks();
+    return notebooks.find(n => n.name.toLowerCase() === name.toLowerCase()) || null;
   }
 
   /**

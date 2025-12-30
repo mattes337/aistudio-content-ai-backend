@@ -1,7 +1,10 @@
 import { Request, Response } from 'express';
 import { AIService } from '../services/ai-service';
 import { OpenNotebookService } from '../services/OpenNotebookService';
+import { loadEnvConfig } from '../utils/env';
 import logger from '../utils/logger';
+
+const config = loadEnvConfig();
 
 export class AIController {
   // ============== Legacy Endpoints (kept for backwards compatibility) ==============
@@ -286,10 +289,26 @@ export class AIController {
 
   static async researchQuery(req: Request, res: Response) {
     try {
-      const { query, channelId, history, notebookId } = req.body;
+      const { query, channelId, history } = req.body;
       if (!query) {
         return res.status(400).json({ message: 'Query is required' });
       }
+
+      // Look up the catchall notebook by name from config
+      let notebookId: string | undefined;
+      try {
+        const catchallNotebook = await OpenNotebookService.findNotebookByName(
+          config.openNotebookCatchallName
+        );
+        if (catchallNotebook) {
+          notebookId = catchallNotebook.id;
+        } else {
+          logger.warn(`Catchall notebook "${config.openNotebookCatchallName}" not found`);
+        }
+      } catch (err) {
+        logger.warn('Failed to look up catchall notebook:', err);
+      }
+
       const result = await AIService.researchQuery({
         query,
         channelId,

@@ -163,7 +163,6 @@ const refineContentSchema = Joi.object({
 const researchQuerySchema = Joi.object({
   query: Joi.string().min(1).required(),
   channelId: Joi.string().uuid().optional(),
-  notebookId: Joi.string().optional(),
   history: Joi.array().items(
     Joi.object({
       role: Joi.string().valid('user', 'assistant').required(),
@@ -338,7 +337,7 @@ export const validateSearchKnowledgeLenient = validateBodyLenient(searchKnowledg
 
 // Lenient versions for new AI endpoints
 export const validateRefineContentLenient = validateBodyLenient(refineContentSchema, ['currentContent', 'instruction', 'type', 'history']);
-export const validateResearchQueryLenient = validateBodyLenient(researchQuerySchema, ['query', 'channelId', 'notebookId', 'history']);
+export const validateResearchQueryLenient = validateBodyLenient(researchQuerySchema, ['query', 'channelId', 'history']);
 export const validateAgentTaskLenient = validateBodyLenient(agentTaskSchema, ['type', 'params']);
 export const validateKnowledgeSearchLenient = validateBodyLenient(knowledgeSearchSchema, ['query', 'type', 'limit', 'minimum_score']);
 export const validateKnowledgeAskLenient = validateBodyLenient(knowledgeAskSchema, ['question', 'strategy_model', 'answer_model', 'final_answer_model']);

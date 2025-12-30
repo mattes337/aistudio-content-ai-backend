@@ -12,6 +12,7 @@ export interface AppConfig {
   openNotebookUrl: string;
   openNotebookPassword: string;
   openNotebookEnabled: boolean;
+  openNotebookCatchallName: string;
   logLevel: string;
   fileCleanupDelayHours: number;
   fileCleanupIntervalMinutes: number;
@@ -31,6 +32,7 @@ export const loadEnvConfig = (): AppConfig => {
     openNotebookUrl: process.env.OPEN_NOTEBOOK_URL || 'http://localhost:5055',
     openNotebookPassword: process.env.OPEN_NOTEBOOK_PASSWORD || '',
     openNotebookEnabled: process.env.OPEN_NOTEBOOK_ENABLED === 'true',
+    openNotebookCatchallName: process.env.OPEN_NOTEBOOK_CATCHALL_NAME || 'Research - All Sources',
     logLevel: process.env.LOG_LEVEL || 'info',
     fileCleanupDelayHours: parseInt(process.env.FILE_CLEANUP_DELAY_HOURS || '24', 10),
     fileCleanupIntervalMinutes: parseInt(process.env.FILE_CLEANUP_INTERVAL_MINUTES || '60', 10),
