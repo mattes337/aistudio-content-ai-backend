@@ -13,6 +13,8 @@ export interface AppConfig {
   openNotebookPassword: string;
   openNotebookEnabled: boolean;
   logLevel: string;
+  fileCleanupDelayHours: number;
+  fileCleanupIntervalMinutes: number;
 }
 
 export const loadEnvConfig = (): AppConfig => {
@@ -30,5 +32,7 @@ export const loadEnvConfig = (): AppConfig => {
     openNotebookPassword: process.env.OPEN_NOTEBOOK_PASSWORD || '',
     openNotebookEnabled: process.env.OPEN_NOTEBOOK_ENABLED === 'true',
     logLevel: process.env.LOG_LEVEL || 'info',
+    fileCleanupDelayHours: parseInt(process.env.FILE_CLEANUP_DELAY_HOURS || '24', 10),
+    fileCleanupIntervalMinutes: parseInt(process.env.FILE_CLEANUP_INTERVAL_MINUTES || '60', 10),
   };
 };

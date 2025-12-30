@@ -19,6 +19,7 @@ import newslettersRouter from './routes/newsletters';
 import aiRouter from './routes/ai';
 import chatRouter from './routes/chat';
 import { serveUploadedFile } from './middleware/fileServing';
+import { fileCleanupService } from './services/FileCleanupService';
 
 const config = loadEnvConfig();
 
@@ -129,6 +130,9 @@ async function startServer() {
     await initDatabase();
     logger.info('Database initialized successfully');
 
+    // Start file cleanup background service
+    fileCleanupService.start();
+
     // Start the server
     app.listen(config.port, () => {
       logger.info(`Server running on port ${config.port} in ${config.nodeEnv} mode`);
@@ -142,11 +146,13 @@ async function startServer() {
 // Handle graceful shutdown
 process.on('SIGTERM', async () => {
   logger.info('SIGTERM received, shutting down gracefully');
+  fileCleanupService.stop();
   process.exit(0);
 });
 
 process.on('SIGINT', async () => {
   logger.info('SIGINT received, shutting down gracefully');
+  fileCleanupService.stop();
   process.exit(0);
 });
 

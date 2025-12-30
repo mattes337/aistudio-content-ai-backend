@@ -30,7 +30,7 @@ export interface KnowledgeSourceChannel {
 }
 
 export type KnowledgeSourceType = 'text' | 'website' | 'pdf' | 'instagram' | 'youtube' | 'video_file' | 'audio_file';
-export type ProcessingStatus = 'pending' | 'processed' | 'error';
+export type ProcessingStatus = 'pending' | 'processed' | 'error' | 'deleted';
 export type EmbeddingStatus = 'pending' | 'complete' | 'failed';
 export type FileStatus = 'active' | 'uploading' | 'missing' | 'deleted';
 

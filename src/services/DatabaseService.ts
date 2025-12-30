@@ -582,7 +582,7 @@ export class DatabaseService {
     let paramCount = 1;
 
     // Always exclude soft-deleted items
-    conditions.push(`ks.file_status != 'deleted'`);
+    conditions.push(`ks.status != 'deleted'`);
 
     // Build WHERE conditions
     // Only filter by folder_path if a non-empty value is provided
@@ -708,21 +708,11 @@ export class DatabaseService {
   }
 
   static async deleteKnowledgeSource(id: string): Promise<boolean> {
-    // Get the knowledge source first to retrieve the file_path
-    const source = await this.getKnowledgeSourceById(id);
-    if (!source) {
-      return false;
-    }
-
-    // Delete the file from uploads directory if it exists
-    if (source.file_path) {
-      deleteFile(source.file_path);
-    }
-
-    // Soft delete: mark as deleted so sync service can clean up Open Notebook sources
+    // Soft delete: mark status as deleted
+    // Files will be cleaned up by background process after 1 day
     const result = await pool.query(
       `UPDATE knowledge_sources
-       SET file_status = 'deleted', updated_at = NOW()
+       SET status = 'deleted', updated_at = NOW()
        WHERE id = $1`,
       [id]
     );
@@ -741,7 +731,7 @@ export class DatabaseService {
     const result = await pool.query(`
       SELECT folder_path, COUNT(*) as item_count
       FROM knowledge_sources
-      WHERE file_status != 'deleted'
+      WHERE status != 'deleted'
       GROUP BY folder_path
       ORDER BY folder_path NULLS FIRST
     `);
@@ -766,7 +756,7 @@ export class DatabaseService {
       SELECT ks.*
       FROM knowledge_sources ks
       WHERE ks.status != 'error'
-        AND ks.file_status != 'deleted'
+        AND ks.status != 'deleted'
       ORDER BY ks.created_at
     `);
 
@@ -794,9 +784,28 @@ export class DatabaseService {
   static async getDeletedKnowledgeSources(): Promise<KnowledgeSource[]> {
     const result = await pool.query(`
       SELECT * FROM knowledge_sources
-      WHERE file_status = 'deleted'
+      WHERE status = 'deleted'
     `);
     return result.rows;
+  }
+
+  static async getDeletedKnowledgeSourcesForCleanup(delayHours: number): Promise<KnowledgeSource[]> {
+    const result = await pool.query(`
+      SELECT * FROM knowledge_sources
+      WHERE status = 'deleted'
+        AND updated_at < NOW() - INTERVAL '1 hour' * $1
+    `, [delayHours]);
+    return result.rows;
+  }
+
+  static async hardDeleteKnowledgeSource(id: string): Promise<boolean> {
+    // First delete associated chunks
+    await pool.query('DELETE FROM knowledge_chunks WHERE knowledge_source_id = $1', [id]);
+    // Then delete channel associations
+    await pool.query('DELETE FROM knowledge_source_channels WHERE knowledge_source_id = $1', [id]);
+    // Finally delete the knowledge source
+    const result = await pool.query('DELETE FROM knowledge_sources WHERE id = $1', [id]);
+    return (result.rowCount ?? 0) > 0;
   }
 
   static async updateKnowledgeSourceSyncStatus(
