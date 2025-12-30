@@ -88,11 +88,17 @@ export class OpenNotebookService {
     const url = `${this.baseUrl}${endpoint}`;
 
     try {
+      const headers: Record<string, string> = {
+        'Content-Type': 'application/json',
+      };
+
+      if (config.openNotebookPassword) {
+        headers['Authorization'] = `Bearer ${config.openNotebookPassword}`;
+      }
+
       const response = await fetch(url, {
         method,
-        headers: {
-          'Content-Type': 'application/json',
-        },
+        headers,
         body: body ? JSON.stringify(body) : undefined,
       });
 
