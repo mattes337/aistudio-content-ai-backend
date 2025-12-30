@@ -1,15 +1,32 @@
 import { Request, Response } from 'express';
 import { DatabaseService } from '../services/DatabaseService';
-import { CreateKnowledgeSourceRequest, UpdateKnowledgeSourceRequest, FolderTreeNode } from '../models/KnowledgeSource';
+import {
+  CreateKnowledgeSourceRequest,
+  UpdateKnowledgeSourceRequest,
+  FolderTreeNode,
+  KnowledgeSourceQueryOptions,
+  KnowledgeSourceType,
+  ProcessingStatus
+} from '../models/KnowledgeSource';
 import logger from '../utils/logger';
 import { getFileUrl } from '../utils/fileUpload';
 
 export class KnowledgeSourceController {
   static async getKnowledgeSources(req: Request, res: Response) {
     try {
-      const folderPath = req.query.folder_path as string | undefined;
-      const sources = await DatabaseService.getKnowledgeSources(folderPath);
-      res.json(sources);
+      const options: KnowledgeSourceQueryOptions = {
+        folder_path: req.query.folder_path as string | undefined,
+        search: req.query.search as string | undefined,
+        type: req.query.type as KnowledgeSourceType | undefined,
+        status: req.query.status as ProcessingStatus | undefined,
+        sort_by: req.query.sort_by as 'name' | 'created_at' | 'updated_at' | 'type' | undefined,
+        sort_order: req.query.sort_order as 'asc' | 'desc' | undefined,
+        limit: req.query.limit ? parseInt(req.query.limit as string, 10) : undefined,
+        offset: req.query.offset ? parseInt(req.query.offset as string, 10) : undefined
+      };
+
+      const result = await DatabaseService.getKnowledgeSources(options);
+      res.json(result);
     } catch (error) {
       logger.error('Error fetching knowledge sources:', error);
       res.status(500).json({ message: 'Internal server error' });

@@ -12,7 +12,12 @@ router.use(authenticateToken);
  * @swagger
  * /api/knowledge-sources:
  *   get:
- *     summary: Get all knowledge sources
+ *     summary: Get knowledge sources with pagination, sorting, and filtering
+ *     description: |
+ *       Returns knowledge sources with pagination support.
+ *       - When no folder_path is provided: returns all items (up to limit, default 100)
+ *       - When folder_path is provided: returns only items directly in that folder (exclusive, not subfolders)
+ *       - Use empty string for folder_path to get uncategorized items
  *     tags: [Knowledge Sources]
  *     security:
  *       - bearerAuth: []
@@ -21,16 +26,74 @@ router.use(authenticateToken);
  *         name: folder_path
  *         schema:
  *           type: string
- *         description: Filter by folder path. Use empty string for uncategorized items.
+ *         description: Filter by exact folder path (exclusive - only items directly in folder). Use empty string for uncategorized items.
+ *       - in: query
+ *         name: search
+ *         schema:
+ *           type: string
+ *         description: Search by name (case-insensitive partial match)
+ *       - in: query
+ *         name: type
+ *         schema:
+ *           type: string
+ *           enum: [text, website, pdf, instagram, youtube, video_file, audio_file]
+ *         description: Filter by knowledge source type
+ *       - in: query
+ *         name: status
+ *         schema:
+ *           type: string
+ *           enum: [pending, processed, error]
+ *         description: Filter by processing status
+ *       - in: query
+ *         name: sort_by
+ *         schema:
+ *           type: string
+ *           enum: [name, created_at, updated_at, type]
+ *           default: created_at
+ *         description: Field to sort by
+ *       - in: query
+ *         name: sort_order
+ *         schema:
+ *           type: string
+ *           enum: [asc, desc]
+ *           default: desc
+ *         description: Sort order
+ *       - in: query
+ *         name: limit
+ *         schema:
+ *           type: integer
+ *           minimum: 1
+ *           maximum: 100
+ *           default: 100
+ *         description: Maximum number of items to return (max 100)
+ *       - in: query
+ *         name: offset
+ *         schema:
+ *           type: integer
+ *           minimum: 0
+ *           default: 0
+ *         description: Number of items to skip for pagination
  *     responses:
  *       200:
- *         description: List of knowledge sources
+ *         description: Paginated list of knowledge sources
  *         content:
  *           application/json:
  *             schema:
- *               type: array
- *               items:
- *                 $ref: '#/components/schemas/KnowledgeSource'
+ *               type: object
+ *               properties:
+ *                 data:
+ *                   type: array
+ *                   items:
+ *                     $ref: '#/components/schemas/KnowledgeSource'
+ *                 total:
+ *                   type: integer
+ *                   description: Total number of matching items
+ *                 limit:
+ *                   type: integer
+ *                   description: Items per page
+ *                 offset:
+ *                   type: integer
+ *                   description: Current offset
  *       500:
  *         description: Internal server error
  */

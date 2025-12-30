@@ -50,3 +50,22 @@ export interface FolderTreeNode {
   children: FolderTreeNode[];
   item_count: number;     // Number of items directly in this folder
 }
+
+// Pagination, sorting, and filtering options for knowledge sources
+export interface KnowledgeSourceQueryOptions {
+  folder_path?: string;   // Filter by exact folder path (exclusive - only items directly in folder)
+  search?: string;        // Search by name
+  type?: KnowledgeSourceType;  // Filter by type
+  status?: ProcessingStatus;   // Filter by status
+  sort_by?: 'name' | 'created_at' | 'updated_at' | 'type';
+  sort_order?: 'asc' | 'desc';
+  limit?: number;         // Max 100, default 100
+  offset?: number;        // Default 0
+}
+
+export interface PaginatedKnowledgeSources {
+  data: KnowledgeSource[];
+  total: number;
+  limit: number;
+  offset: number;
+}

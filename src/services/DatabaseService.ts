@@ -8,7 +8,9 @@ import type {
   KnowledgeChunk,
   KnowledgeSourceChannel,
   CreateKnowledgeSourceRequest,
-  UpdateKnowledgeSourceRequest
+  UpdateKnowledgeSourceRequest,
+  KnowledgeSourceQueryOptions,
+  PaginatedKnowledgeSources
 } from '../models/KnowledgeSource';
 import type { CreateRecipientRequest, UpdateRecipientRequest } from '../models/Recipient';
 import type { CreateNewsletterRequest, UpdateNewsletterRequest } from '../models/Newsletter';
@@ -553,31 +555,89 @@ export class DatabaseService {
     return result.rows[0];
   }
 
-  static async getKnowledgeSources(folderPath?: string): Promise<KnowledgeSource[]> {
-    let query = `
+  static async getKnowledgeSources(options: KnowledgeSourceQueryOptions = {}): Promise<PaginatedKnowledgeSources> {
+    const {
+      folder_path,
+      search,
+      type,
+      status,
+      sort_by = 'created_at',
+      sort_order = 'desc',
+      limit: requestedLimit = 100,
+      offset = 0
+    } = options;
+
+    // Enforce max limit of 100
+    const limit = Math.min(requestedLimit, 100);
+
+    // Validate sort_by to prevent SQL injection
+    const allowedSortFields = ['name', 'created_at', 'updated_at', 'type'];
+    const safeSortBy = allowedSortFields.includes(sort_by) ? sort_by : 'created_at';
+    const safeSortOrder = sort_order === 'asc' ? 'ASC' : 'DESC';
+
+    const values: any[] = [];
+    const conditions: string[] = [];
+    let paramCount = 1;
+
+    // Build WHERE conditions
+    if (folder_path !== undefined) {
+      // Filter by exact folder path (exclusive - only items directly in folder)
+      if (folder_path === '' || folder_path === null) {
+        conditions.push('ks.folder_path IS NULL');
+      } else {
+        conditions.push(`ks.folder_path = $${paramCount++}`);
+        values.push(folder_path);
+      }
+    }
+
+    if (search) {
+      conditions.push(`ks.name ILIKE $${paramCount++}`);
+      values.push(`%${search}%`);
+    }
+
+    if (type) {
+      conditions.push(`ks.type = $${paramCount++}`);
+      values.push(type);
+    }
+
+    if (status) {
+      conditions.push(`ks.status = $${paramCount++}`);
+      values.push(status);
+    }
+
+    const whereClause = conditions.length > 0 ? `WHERE ${conditions.join(' AND ')}` : '';
+
+    // Count query for total
+    const countQuery = `
+      SELECT COUNT(DISTINCT ks.id) as total
+      FROM knowledge_sources ks
+      ${whereClause}
+    `;
+    const countResult = await pool.query(countQuery, values);
+    const total = parseInt(countResult.rows[0].total, 10);
+
+    // Data query with pagination
+    const dataQuery = `
       SELECT ks.*,
              COUNT(kc.id) as chunk_count,
              SUM(CASE WHEN kc.embedding_status = 'complete' THEN 1 ELSE 0 END) as embedded_count
       FROM knowledge_sources ks
       LEFT JOIN knowledge_chunks kc ON ks.id = kc.knowledge_source_id
+      ${whereClause}
+      GROUP BY ks.id
+      ORDER BY ks.${safeSortBy} ${safeSortOrder}
+      LIMIT $${paramCount++} OFFSET $${paramCount++}
     `;
+    values.push(limit, offset);
 
-    const values: any[] = [];
+    const dataResult = await pool.query(dataQuery, values);
 
-    if (folderPath !== undefined) {
-      // Filter by exact folder path (null for root/uncategorized items)
-      if (folderPath === '' || folderPath === null) {
-        query += ' WHERE ks.folder_path IS NULL';
-      } else {
-        query += ' WHERE ks.folder_path = $1';
-        values.push(folderPath);
-      }
-    }
-
-    query += ' GROUP BY ks.id ORDER BY ks.created_at DESC';
-
-    const result = await pool.query(query, values);
-    return result.rows;
+    return {
+      data: dataResult.rows,
+      total,
+      limit,
+      offset
+    };
   }
 
   static async getKnowledgeSourceById(id: string): Promise<KnowledgeSource | null> {
