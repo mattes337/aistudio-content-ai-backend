@@ -729,6 +729,78 @@ export class DatabaseService {
     }));
   }
 
+  // Knowledge Source Channel operations (for Open Notebook sync)
+  static async getKnowledgeSourceChannels(sourceId: string): Promise<string[]> {
+    const result = await pool.query(
+      'SELECT channel_id FROM knowledge_source_channels WHERE knowledge_source_id = $1',
+      [sourceId]
+    );
+    return result.rows.map(row => row.channel_id);
+  }
+
+  static async getKnowledgeSourcesForSync(): Promise<(KnowledgeSource & { channel_ids: string[] })[]> {
+    // Get all knowledge sources that are not in error state and not deleted
+    const sourcesResult = await pool.query(`
+      SELECT ks.*
+      FROM knowledge_sources ks
+      WHERE ks.status != 'error'
+        AND ks.file_status != 'deleted'
+      ORDER BY ks.created_at
+    `);
+
+    // Get channel associations for all sources
+    const channelsResult = await pool.query(`
+      SELECT knowledge_source_id, channel_id
+      FROM knowledge_source_channels
+    `);
+
+    // Build a map of source_id -> channel_ids
+    const channelMap = new Map<string, string[]>();
+    for (const row of channelsResult.rows) {
+      const channels = channelMap.get(row.knowledge_source_id) || [];
+      channels.push(row.channel_id);
+      channelMap.set(row.knowledge_source_id, channels);
+    }
+
+    // Combine sources with their channels
+    return sourcesResult.rows.map(source => ({
+      ...source,
+      channel_ids: channelMap.get(source.id) || []
+    }));
+  }
+
+  static async getDeletedKnowledgeSources(): Promise<KnowledgeSource[]> {
+    const result = await pool.query(`
+      SELECT * FROM knowledge_sources
+      WHERE file_status = 'deleted'
+    `);
+    return result.rows;
+  }
+
+  static async updateKnowledgeSourceSyncStatus(
+    id: string,
+    syncedAt: Date,
+    notebookSourceIds: Record<string, string>
+  ): Promise<void> {
+    await pool.query(`
+      UPDATE knowledge_sources
+      SET open_notebook_synced_at = $1,
+          open_notebook_source_ids = $2,
+          updated_at = NOW()
+      WHERE id = $3
+    `, [syncedAt, JSON.stringify(notebookSourceIds), id]);
+  }
+
+  static async clearKnowledgeSourceSyncStatus(id: string): Promise<void> {
+    await pool.query(`
+      UPDATE knowledge_sources
+      SET open_notebook_synced_at = NULL,
+          open_notebook_source_ids = '{}',
+          updated_at = NOW()
+      WHERE id = $1
+    `, [id]);
+  }
+
   // Vector search operations
   static async searchSimilarContent(queryVector: number[], limit: number = 10, threshold: number = 0.7): Promise<any[]> {
     const sql = `

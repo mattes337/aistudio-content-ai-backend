@@ -8,6 +8,9 @@ export interface KnowledgeSource {
   file_status: FileStatus;
   folder_path?: string; // Virtual folder path for organization (e.g., "my-files/subA/texts")
   data: Record<string, any>;
+  // Open Notebook sync tracking
+  open_notebook_synced_at?: Date;
+  open_notebook_source_ids?: Record<string, string>; // { channel_id: notebook_source_id }
   created_at: Date;
   updated_at: Date;
 }

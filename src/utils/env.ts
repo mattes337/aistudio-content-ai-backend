@@ -10,6 +10,8 @@ export interface AppConfig {
   geminiApiKey: string;
   anthropicApiKey: string;
   openNotebookUrl: string;
+  openNotebookPassword: string;
+  openNotebookEnabled: boolean;
   logLevel: string;
 }
 
@@ -25,6 +27,8 @@ export const loadEnvConfig = (): AppConfig => {
     geminiApiKey: process.env.GEMINI_API_KEY || '',
     anthropicApiKey: process.env.ANTHROPIC_API_KEY || '',
     openNotebookUrl: process.env.OPEN_NOTEBOOK_URL || 'http://localhost:5055',
+    openNotebookPassword: process.env.OPEN_NOTEBOOK_PASSWORD || '',
+    openNotebookEnabled: process.env.OPEN_NOTEBOOK_ENABLED === 'true',
     logLevel: process.env.LOG_LEVEL || 'info',
   };
 };
