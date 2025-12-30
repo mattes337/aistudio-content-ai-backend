@@ -817,6 +817,77 @@ router.post('/research', AIController.researchQuery);
 
 /**
  * @swagger
+ * /api/ai/research/stream:
+ *   post:
+ *     summary: Research query with streaming response (SSE)
+ *     tags: [AI Research]
+ *     security:
+ *       - bearerAuth: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required: [query]
+ *             properties:
+ *               query:
+ *                 type: string
+ *                 description: Research query
+ *               channelId:
+ *                 type: string
+ *                 description: Optional channel ID for context filtering
+ *               history:
+ *                 type: array
+ *                 items:
+ *                   type: object
+ *                   properties:
+ *                     role:
+ *                       type: string
+ *                       enum: [user, assistant]
+ *                     text:
+ *                       type: string
+ *                 description: Conversation history
+ *               verbose:
+ *                 type: boolean
+ *                 default: false
+ *                 description: Include detailed tool calls and intermediate results in stream
+ *     responses:
+ *       200:
+ *         description: Streaming research response (SSE)
+ *         content:
+ *           text/event-stream:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 type:
+ *                   type: string
+ *                   enum: [status, tool_start, tool_result, delta, sources, done, error]
+ *                 status:
+ *                   type: string
+ *                 tool:
+ *                   type: string
+ *                 toolInput:
+ *                   type: object
+ *                 toolResult:
+ *                   type: object
+ *                 content:
+ *                   type: string
+ *                 sources:
+ *                   type: array
+ *                 response:
+ *                   type: string
+ *                 steps:
+ *                   type: number
+ *                 error:
+ *                   type: string
+ *       500:
+ *         description: Internal server error
+ */
+router.post('/research/stream', AIController.researchQueryStream);
+
+/**
+ * @swagger
  * /api/ai/agent/task:
  *   post:
  *     summary: Execute a content creation task via Claude Agent

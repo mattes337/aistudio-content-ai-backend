@@ -149,3 +149,37 @@ export interface StreamChunk {
   content?: string;
   chatResponse?: string;
 }
+
+// ============== Research Streaming Types ==============
+
+export interface ResearchStreamChunk {
+  type: 'status' | 'tool_start' | 'tool_result' | 'delta' | 'sources' | 'done' | 'error';
+  /** Status message for current operation */
+  status?: string;
+  /** Tool name being executed */
+  tool?: string;
+  /** Tool input parameters (verbose mode) */
+  toolInput?: Record<string, unknown>;
+  /** Tool execution result (verbose mode) */
+  toolResult?: unknown;
+  /** Incremental text content */
+  content?: string;
+  /** Source references found */
+  sources?: SourceReference[];
+  /** Final complete response */
+  response?: string;
+  /** Total steps taken */
+  steps?: number;
+  /** Error message */
+  error?: string;
+}
+
+export interface ResearchStreamOptions {
+  query: string;
+  channelId?: string;
+  history?: ChatMessage[];
+  notebookId?: string;
+  maxSteps?: number;
+  /** Stream verbose output including tool calls and intermediate results */
+  verbose?: boolean;
+}

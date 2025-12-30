@@ -32,7 +32,7 @@ import {
 import { generateImage, editImage } from './generators/image';
 
 // Import agent
-import { researchQuery, executeTask } from './agent';
+import { researchQuery, researchQueryStream, executeTask } from './agent';
 
 // Import streaming
 import { refineContentStream, generateArticleContentStream } from './streaming';
@@ -80,6 +80,7 @@ export class AIService {
   // ============== Agent/Research ==============
 
   static researchQuery = researchQuery;
+  static researchQueryStream = researchQueryStream;
   static executeTask = executeTask;
 
   // ============== Legacy Compatibility Methods ==============

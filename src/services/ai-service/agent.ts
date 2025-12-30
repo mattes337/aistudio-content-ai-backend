@@ -1,7 +1,15 @@
-import { generateText, stepCountIs } from 'ai';
+import { generateText, streamText, stepCountIs } from 'ai';
 import { createModelConfig, selectModel } from './models';
 import { researchTools } from './tools';
-import type { AgentQuery, AgentResponse, AgentTask, ChatMessage, SourceReference } from './types';
+import type {
+  AgentQuery,
+  AgentResponse,
+  AgentTask,
+  ChatMessage,
+  SourceReference,
+  ResearchStreamChunk,
+  ResearchStreamOptions,
+} from './types';
 import { withErrorHandling } from './errors';
 import logger from '../../utils/logger';
 
@@ -161,6 +169,121 @@ export async function researchQuery(request: AgentQuery): Promise<AgentResponse>
     },
     'researchQuery'
   );
+}
+
+/**
+ * Streaming version of researchQuery that yields progress updates
+ */
+export async function* researchQueryStream(
+  request: ResearchStreamOptions
+): AsyncGenerator<ResearchStreamChunk> {
+  logger.info(`Research agent stream: "${request.query.substring(0, 50)}..." verbose=${request.verbose}`);
+
+  yield { type: 'status', status: 'Starting research...' };
+
+  try {
+    // Build conversation history context
+    const historyContext =
+      request.history
+        ?.map((msg: ChatMessage) => `${msg.role === 'user' ? 'User' : 'Assistant'}: ${msg.text}`)
+        .join('\n') || '';
+
+    // Build system prompt with retrieval strategy
+    const systemPrompt = buildRetrievalSystemPrompt(request.notebookId, historyContext);
+
+    const modelConfig = createModelConfig(selectModel('agent'));
+    const toolCalls: { name: string; args: unknown; result: unknown }[] = [];
+
+    yield { type: 'status', status: 'Searching knowledge base...' };
+
+    // Use streamText with fullStream for granular events
+    const result = streamText({
+      model: modelConfig.model,
+      temperature: modelConfig.temperature,
+      maxOutputTokens: modelConfig.maxTokens,
+      providerOptions: modelConfig.providerOptions,
+      system: systemPrompt,
+      prompt: request.query,
+      tools: researchTools,
+      maxSteps: request.maxSteps || 10,
+    });
+
+    // Use fullStream for real-time events
+    let fullResponse = '';
+    let stepCount = 0;
+
+    for await (const part of result.fullStream) {
+      switch (part.type) {
+        case 'step-start':
+          stepCount++;
+          if (request.verbose) {
+            yield { type: 'status', status: `Step ${stepCount}: Processing...` };
+          }
+          break;
+
+        case 'tool-call':
+          if (request.verbose) {
+            yield {
+              type: 'tool_start',
+              tool: part.toolName,
+              toolInput: part.args as Record<string, unknown>,
+              status: `Calling ${part.toolName}...`,
+            };
+          }
+          break;
+
+        case 'tool-result':
+          toolCalls.push({
+            name: part.toolName,
+            args: part.args,
+            result: part.result,
+          });
+          if (request.verbose) {
+            yield {
+              type: 'tool_result',
+              tool: part.toolName,
+              toolInput: part.args as Record<string, unknown>,
+              toolResult: part.result,
+            };
+          }
+          break;
+
+        case 'text-delta':
+          fullResponse += part.textDelta;
+          yield { type: 'delta', content: part.textDelta };
+          break;
+
+        case 'error':
+          yield {
+            type: 'error',
+            error: part.error instanceof Error ? part.error.message : String(part.error),
+          };
+          break;
+      }
+    }
+
+    // Extract sources from all tool calls
+    const sources = extractSourcesFromToolCalls(
+      toolCalls.map((tc) => ({ name: tc.name, result: tc.result }))
+    );
+
+    if (sources.length > 0) {
+      yield { type: 'sources', sources };
+    }
+
+    yield {
+      type: 'done',
+      response: fullResponse,
+      sources: sources.length > 0 ? sources : undefined,
+      steps: stepCount,
+    };
+  } catch (error) {
+    logger.error('Research stream error:', error);
+    yield {
+      type: 'error',
+      error: error instanceof Error ? error.message : 'Unknown error occurred',
+    };
+  }
 }
 
 export async function executeTask(task: AgentTask): Promise<Record<string, unknown>> {

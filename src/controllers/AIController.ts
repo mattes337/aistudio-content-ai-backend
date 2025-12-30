@@ -322,6 +322,57 @@ export class AIController {
     }
   }
 
+  static async researchQueryStream(req: Request, res: Response) {
+    try {
+      const { query, channelId, history, verbose } = req.body;
+      if (!query) {
+        return res.status(400).json({ message: 'Query is required' });
+      }
+
+      // Look up the catchall notebook by name from config
+      let notebookId: string | undefined;
+      try {
+        const catchallNotebook = await OpenNotebookService.findNotebookByName(
+          config.openNotebookCatchallName
+        );
+        if (catchallNotebook) {
+          notebookId = catchallNotebook.id;
+        } else {
+          logger.warn(`Catchall notebook "${config.openNotebookCatchallName}" not found`);
+        }
+      } catch (err) {
+        logger.warn('Failed to look up catchall notebook:', err);
+      }
+
+      // Set up SSE headers
+      res.setHeader('Content-Type', 'text/event-stream');
+      res.setHeader('Cache-Control', 'no-cache');
+      res.setHeader('Connection', 'keep-alive');
+      res.setHeader('X-Accel-Buffering', 'no'); // Disable nginx buffering
+
+      // Stream the research response
+      for await (const chunk of AIService.researchQueryStream({
+        query,
+        channelId,
+        history,
+        notebookId,
+        verbose: verbose === true,
+      })) {
+        res.write(`data: ${JSON.stringify(chunk)}\n\n`);
+      }
+
+      res.end();
+    } catch (error) {
+      logger.error('Error in research query stream:', error);
+      if (!res.headersSent) {
+        res.status(500).json({ message: 'Internal server error' });
+      } else {
+        res.write(`data: ${JSON.stringify({ type: 'error', error: 'Internal server error' })}\n\n`);
+        res.end();
+      }
+    }
+  }
+
   static async executeAgentTask(req: Request, res: Response) {
     try {
       const { type, params } = req.body;
