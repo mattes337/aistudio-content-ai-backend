@@ -6,7 +6,7 @@ CREATE TYPE article_status AS ENUM ('draft', 'approved', 'scheduled', 'published
 CREATE TYPE post_status AS ENUM ('draft', 'approved', 'scheduled', 'published', 'deleted');
 CREATE TYPE newsletter_status AS ENUM ('draft', 'scheduled', 'sent');
 CREATE TYPE knowledge_source_type AS ENUM ('text', 'website', 'pdf', 'instagram', 'youtube', 'video_file', 'audio_file');
-CREATE TYPE processing_status AS ENUM ('pending', 'processed', 'error');
+CREATE TYPE processing_status AS ENUM ('pending', 'processed', 'error', 'deleted');
 CREATE TYPE embedding_status AS ENUM ('pending', 'complete', 'failed');
 CREATE TYPE recipient_status AS ENUM ('subscribed', 'unsubscribed');
 CREATE TYPE file_status AS ENUM ('active', 'uploading', 'missing', 'deleted');
