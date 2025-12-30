@@ -121,6 +121,22 @@ export interface AgentQuery {
   modelConfig?: OpenNotebookModelConfig;
 }
 
+/**
+ * Location within a source document.
+ * Different source types use different location formats:
+ * - text/pdf: line, page, paragraph, chapter, section
+ * - video/audio: timecode (format: "HH:MM:SS" or "MM:SS")
+ * - website: anchor (URL fragment)
+ */
+export interface SourceLocation {
+  /** Location type identifier */
+  type: 'line' | 'page' | 'paragraph' | 'chapter' | 'section' | 'timecode' | 'anchor' | 'index';
+  /** Location value (line number, page number, timecode string, etc.) */
+  value: string;
+  /** Human-readable label for the location (e.g., "Page 15", "Chapter 3: Introduction") */
+  label?: string;
+}
+
 /** Reference to a knowledge source used in a response */
 export interface SourceReference {
   id: string;
@@ -128,7 +144,76 @@ export interface SourceReference {
   excerpt: string;
   score: number;
   usedInResponse?: boolean;
+  /** Location within the source (optional) */
+  location?: SourceLocation;
+  /** Source type (e.g., 'text', 'pdf', 'video', 'audio', 'website') */
+  sourceType?: string;
 }
+
+/**
+ * Inline Reference Format Specification
+ *
+ * References are embedded in AI response text using this format:
+ * [[ref:id={SOURCE_ID}|name={SOURCE_NAME}|loc={LOCATION_TYPE}:{LOCATION_VALUE}]]
+ *
+ * Components:
+ * - id: The unique identifier of the knowledge base source
+ * - name: Human-readable name of the source
+ * - loc: Optional location within the source (type:value format)
+ *
+ * Location types:
+ * - line:{number} - Line number in text documents
+ * - page:{number} - Page number in PDFs
+ * - chapter:{name} - Chapter identifier
+ * - section:{name} - Section identifier
+ * - timecode:{HH:MM:SS} - Timestamp in audio/video
+ * - anchor:{fragment} - URL fragment for web sources
+ * - index:{number} - Generic index position
+ *
+ * Examples:
+ * - [[ref:id=source:abc123|name=Marketing Guide|loc=chapter:3]]
+ * - [[ref:id=source:xyz|name=Podcast Ep 42|loc=timecode:15:30]]
+ * - [[ref:id=source:def|name=API Docs|loc=section:Authentication]]
+ * - [[ref:id=source:ghi|name=User Manual]] (no location)
+ *
+ * Regex for parsing: /\[\[ref:id=([^|]+)\|name=([^|\]]+)(?:\|loc=([^:]+):([^\]]+))?\]\]/g
+ */
+export const REFERENCE_FORMAT = {
+  /** Regex pattern to match inline references */
+  pattern: /\[\[ref:id=([^|]+)\|name=([^|\]]+)(?:\|loc=([^:]+):([^\]]+))?\]\]/g,
+
+  /** Build an inline reference string */
+  build: (id: string, name: string, location?: SourceLocation): string => {
+    const escapedName = name.replace(/[|\]]/g, ' ');
+    let ref = `[[ref:id=${id}|name=${escapedName}`;
+    if (location) {
+      const escapedValue = String(location.value).replace(/[\]]/g, '');
+      ref += `|loc=${location.type}:${escapedValue}`;
+    }
+    ref += ']]';
+    return ref;
+  },
+
+  /** Parse an inline reference string */
+  parse: (ref: string): { id: string; name: string; location?: SourceLocation } | null => {
+    const match = /\[\[ref:id=([^|]+)\|name=([^|\]]+)(?:\|loc=([^:]+):([^\]]+))?\]\]/.exec(ref);
+    if (!match || !match[1] || !match[2]) return null;
+
+    const result: { id: string; name: string; location?: SourceLocation } = {
+      id: match[1],
+      name: match[2],
+    };
+
+    if (match[3] && match[4]) {
+      result.location = {
+        type: match[3] as SourceLocation['type'],
+        value: match[4],
+      };
+    }
+
+    return result;
+  },
+};
 
 export interface AgentResponse {
   response: string;

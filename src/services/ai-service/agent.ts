@@ -7,6 +7,7 @@ import type {
   AgentTask,
   ChatMessage,
   SourceReference,
+  SourceLocation,
   ResearchStreamChunk,
   ResearchStreamOptions,
 } from './types';
@@ -49,12 +50,131 @@ ${historyContext || '(No prior conversation)'}
 - **NEVER expose your search process** to the user - don't mention which search type you used, don't say "I tried semantic search" or "I will try keyword search"
 - **NEVER preface answers** with "Based on the found documents" or similar phrases - just answer directly
 - **Answer naturally** as if you simply know the information
-- **Cite sources** using [Source Name] format when using information
 - **If sources conflict**, present both perspectives with their sources
 - **If knowledge base lacks info**, say you don't have information on that topic (don't explain search failures)
 - **Prefer depth over breadth** - thorough answers over superficial coverage
 - **Use Markdown** for readability
-- **Never fabricate** information not found in sources`;
+- **Never fabricate** information not found in sources
+
+## CITATION FORMAT (CRITICAL)
+When citing sources, use this EXACT inline reference format:
+\`[[ref:id={SOURCE_ID}|name={SOURCE_NAME}|loc={LOCATION_TYPE}:{LOCATION_VALUE}]]\`
+
+Components:
+- **id**: The source ID from search results (e.g., "source:abc123")
+- **name**: Human-readable source name
+- **loc**: Optional location within source (type:value format)
+
+Location types:
+- \`line:{number}\` - For text documents
+- \`page:{number}\` - For PDFs
+- \`chapter:{name}\` - For chapters
+- \`section:{name}\` - For sections
+- \`timecode:{MM:SS}\` or \`timecode:{HH:MM:SS}\` - For audio/video
+- \`index:{number}\` - For indexed content
+
+Examples:
+- \`[[ref:id=source:abc123|name=Marketing Guide|loc=chapter:3]]\`
+- \`[[ref:id=source:xyz789|name=Podcast Episode 42|loc=timecode:15:30]]\`
+- \`[[ref:id=source:def456|name=API Documentation|loc=section:Authentication]]\`
+- \`[[ref:id=source:ghi789|name=User Manual]]\` (no location)
+
+IMPORTANT:
+- Always include the source ID and name
+- Include location when the search result provides specific position info
+- Place references inline where you use the information, not at the end`;
+}
+
+/** Search result interface with source ID and metadata */
+interface SearchResultWithMetadata {
+  sourceId?: string;
+  content: string;
+  source: string;
+  score?: number;
+  metadata?: Record<string, unknown>;
+}
+
+/**
+ * Extract location information from search result metadata
+ */
+function extractLocationFromMetadata(
+  metadata: Record<string, unknown> | undefined
+): SourceLocation | undefined {
+  if (!metadata) return undefined;
+
+  // Check for various location indicators in metadata
+  if (metadata.timecode || metadata.timestamp) {
+    return {
+      type: 'timecode',
+      value: String(metadata.timecode || metadata.timestamp),
+      label: `Timecode ${metadata.timecode || metadata.timestamp}`,
+    };
+  }
+
+  if (metadata.page || metadata.page_number) {
+    const pageNum = metadata.page || metadata.page_number;
+    return {
+      type: 'page',
+      value: String(pageNum),
+      label: `Page ${pageNum}`,
+    };
+  }
+
+  if (metadata.chapter) {
+    return {
+      type: 'chapter',
+      value: String(metadata.chapter),
+      label: `Chapter ${metadata.chapter}`,
+    };
+  }
+
+  if (metadata.section) {
+    return {
+      type: 'section',
+      value: String(metadata.section),
+      label: `Section: ${metadata.section}`,
+    };
+  }
+
+  if (metadata.line || metadata.line_number) {
+    const lineNum = metadata.line || metadata.line_number;
+    return {
+      type: 'line',
+      value: String(lineNum),
+      label: `Line ${lineNum}`,
+    };
+  }
+
+  if (metadata.chunk_index !== undefined || metadata.index !== undefined) {
+    const idx = metadata.chunk_index ?? metadata.index;
+    return {
+      type: 'index',
+      value: String(idx),
+      label: `Index ${idx}`,
+    };
+  }
+
+  return undefined;
+}
+
+/**
+ * Detect source type from metadata or source name
+ */
+function detectSourceType(
+  sourceName: string,
+  metadata: Record<string, unknown> | undefined
+): string | undefined {
+  if (metadata?.type) return String(metadata.type);
+  if (metadata?.source_type) return String(metadata.source_type);
+
+  // Detect from source name patterns
+  const lowerName = sourceName.toLowerCase();
+  if (lowerName.includes('.pdf')) return 'pdf';
+  if (lowerName.includes('.mp3') || lowerName.includes('.wav') || lowerName.includes('audio')) return 'audio';
+  if (lowerName.includes('.mp4') || lowerName.includes('.mov') || lowerName.includes('video') || lowerName.includes('youtube')) return 'video';
+  if (lowerName.includes('http://') || lowerName.includes('https://') || lowerName.includes('.com') || lowerName.includes('.org')) return 'website';
+
+  return undefined;
 }
 
 /**
@@ -72,8 +192,9 @@ function extractSourcesFromToolCalls(
 
     // Extract from searchKnowledge results
     if (tc.name === 'searchKnowledge' && Array.isArray(result.results)) {
-      for (const r of result.results as { content: string; source: string; score?: number }[]) {
-        const id = `${r.source}-${r.content.substring(0, 50)}`;
+      for (const r of result.results as SearchResultWithMetadata[]) {
+        // Use actual source ID if available, otherwise generate one
+        const id = r.sourceId || `${r.source}-${r.content.substring(0, 50)}`;
         if (!seenIds.has(id)) {
           seenIds.add(id);
           sources.push({
@@ -81,6 +202,8 @@ function extractSourcesFromToolCalls(
             name: r.source,
             excerpt: r.content.substring(0, 200),
             score: r.score || 0,
+            location: extractLocationFromMetadata(r.metadata),
+            sourceType: detectSourceType(r.source, r.metadata),
           });
         }
       }
@@ -88,9 +211,10 @@ function extractSourcesFromToolCalls(
 
     // Extract from searchMultiple results
     if (tc.name === 'searchMultiple' && Array.isArray(result.searches)) {
-      for (const search of result.searches as { query: string; results: { content: string; source: string; score?: number }[] }[]) {
+      for (const search of result.searches as { query: string; results: SearchResultWithMetadata[] }[]) {
         for (const r of search.results) {
-          const id = `${r.source}-${r.content.substring(0, 50)}`;
+          // Use actual source ID if available, otherwise generate one
+          const id = r.sourceId || `${r.source}-${r.content.substring(0, 50)}`;
           if (!seenIds.has(id)) {
             seenIds.add(id);
             sources.push({
@@ -98,6 +222,8 @@ function extractSourcesFromToolCalls(
               name: r.source,
               excerpt: r.content.substring(0, 200),
               score: r.score || 0,
+              location: extractLocationFromMetadata(r.metadata),
+              sourceType: detectSourceType(r.source, r.metadata),
             });
           }
         }

@@ -59,9 +59,13 @@ export const searchKnowledgeTool = tool({
       return {
         success: true,
         results: results.map((r) => ({
+          // Include source ID for inline references
+          sourceId: r.id,
           content: r.content,
           source: r.source_name || 'Unknown',
           score: r.score,
+          // Include metadata for location extraction
+          metadata: r.metadata,
         })),
         totalCount: searchResults.total_count,
       };
@@ -223,9 +227,13 @@ export const searchMultipleTool = tool({
         return {
           query,
           results: results.map((r) => ({
+            // Include source ID for inline references
+            sourceId: r.id,
             content: r.content,
             source: r.source_name || 'Unknown',
             score: r.score,
+            // Include metadata for location extraction
+            metadata: r.metadata,
           })),
           totalCount: searchResults.total_count,
         };
