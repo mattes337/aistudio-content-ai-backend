@@ -28,6 +28,10 @@ export const searchKnowledgeTool = tool({
         limit,
         minimum_score,
       });
+      logger.info(`searchKnowledge results: ${results.total_count} total, ${results.results.length} returned`);
+      if (results.results.length > 0) {
+        logger.info(`First result: score=${results.results[0].score}, source=${results.results[0].source_name}, content=${results.results[0].content?.substring(0, 100)}...`);
+      }
       return {
         success: true,
         results: results.results.map((r) => ({
@@ -176,18 +180,23 @@ export const searchMultipleTool = tool({
           type: type as 'text' | 'vector',
           limit: limitPerQuery,
           minimum_score: 0.25,
-        }).then((results) => ({
-          query,
-          results: results.results.map((r) => ({
-            content: r.content,
-            source: r.source_name || 'Unknown',
-            score: r.score,
-          })),
-          totalCount: results.total_count,
-        }))
+        }).then((results) => {
+          logger.info(`searchMultiple query "${query.substring(0, 30)}...": ${results.total_count} total, ${results.results.length} returned`);
+          return {
+            query,
+            results: results.results.map((r) => ({
+              content: r.content,
+              source: r.source_name || 'Unknown',
+              score: r.score,
+            })),
+            totalCount: results.total_count,
+          };
+        })
       );
 
       const results = await Promise.all(searchPromises);
+      const totalResults = results.reduce((sum, r) => sum + r.results.length, 0);
+      logger.info(`searchMultiple completed: ${totalResults} total results across ${queries.length} queries`);
 
       return {
         success: true,

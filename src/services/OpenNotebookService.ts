@@ -135,7 +135,7 @@ export class OpenNotebookService {
   static async search(request: SearchRequest): Promise<SearchResponse> {
     logger.info(`Searching knowledge base: "${request.query.substring(0, 50)}..."`);
 
-    return this.makeRequest<SearchResponse>('/api/search', 'POST', {
+    const result = await this.makeRequest<SearchResponse>('/api/search', 'POST', {
       query: request.query,
       type: request.type || 'text',
       limit: request.limit || 100,
@@ -143,6 +143,13 @@ export class OpenNotebookService {
       search_notes: request.search_notes ?? true,
       minimum_score: request.minimum_score ?? 0.2,
     });
+
+    logger.info(`Search API response: total_count=${result.total_count}, results=${result.results?.length || 0}, search_type=${result.search_type}`);
+    if (result.results && result.results.length > 0) {
+      logger.debug(`First result preview: ${JSON.stringify(result.results[0]).substring(0, 200)}...`);
+    }
+
+    return result;
   }
 
   /**
