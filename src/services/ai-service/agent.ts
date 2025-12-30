@@ -1,4 +1,4 @@
-import { generateText, streamText, stepCountIs } from 'ai';
+import { generateText, stepCountIs } from 'ai';
 import { createModelConfig, selectModel } from './models';
 import { researchTools } from './tools';
 import type {
@@ -172,12 +172,28 @@ export async function researchQuery(request: AgentQuery): Promise<AgentResponse>
 }
 
 /**
- * Streaming version of researchQuery that yields progress updates
+ * Streaming version of researchQuery that yields progress updates.
+ * Uses event queue pattern to yield events from callbacks.
  */
 export async function* researchQueryStream(
   request: ResearchStreamOptions
 ): AsyncGenerator<ResearchStreamChunk> {
   logger.info(`Research agent stream: "${request.query.substring(0, 50)}..." verbose=${request.verbose}`);
+
+  // Event queue for yielding from callbacks
+  const eventQueue: ResearchStreamChunk[] = [];
+  let resolveWaiting: (() => void) | null = null;
+  let isComplete = false;
+  let finalResult: { text: string; steps: any[] } | null = null;
+  let finalError: Error | null = null;
+
+  const pushEvent = (event: ResearchStreamChunk) => {
+    eventQueue.push(event);
+    if (resolveWaiting) {
+      resolveWaiting();
+      resolveWaiting = null;
+    }
+  };
 
   yield { type: 'status', status: 'Starting research...' };
 
@@ -196,8 +212,8 @@ export async function* researchQueryStream(
 
     yield { type: 'status', status: 'Searching knowledge base...' };
 
-    // Use streamText with fullStream for granular events
-    const result = streamText({
+    // Run generateText in background with callbacks
+    const generatePromise = generateText({
       model: modelConfig.model,
       temperature: modelConfig.temperature,
       maxOutputTokens: modelConfig.maxTokens,
@@ -205,90 +221,74 @@ export async function* researchQueryStream(
       system: systemPrompt,
       prompt: request.query,
       tools: researchTools,
-      maxSteps: request.maxSteps || 10,
-    });
+      stopWhen: stepCountIs(request.maxSteps || 10),
+      onStepFinish: ({ toolCalls: stepToolCalls, text, stepType }) => {
+        logger.info(`Step finished: type=${stepType}, tools=${stepToolCalls?.length || 0}, textLen=${text?.length || 0}`);
 
-    // Use fullStream for real-time events
-    let fullResponse = '';
-    let stepCount = 0;
-    const pendingToolCalls = new Map<string, Record<string, unknown>>(); // toolCallId -> args
+        if (stepToolCalls && stepToolCalls.length > 0) {
+          for (const tc of stepToolCalls) {
+            const tcResult = (tc as any).result;
+            toolCalls.push({
+              name: tc.toolName,
+              args: tc.args,
+              result: tcResult,
+            });
 
-    for await (const part of result.fullStream) {
-      logger.debug(`Stream event: ${part.type}`, { partType: part.type });
-
-      switch (part.type) {
-        case 'step-start':
-          stepCount++;
-          logger.info(`Step ${stepCount} started`);
-          if (request.verbose) {
-            yield { type: 'status', status: `Step ${stepCount}: Processing...` };
+            if (request.verbose) {
+              pushEvent({
+                type: 'tool_start',
+                tool: tc.toolName,
+                toolInput: tc.args as Record<string, unknown>,
+                status: `Called ${tc.toolName}`,
+              });
+              pushEvent({
+                type: 'tool_result',
+                tool: tc.toolName,
+                toolInput: tc.args as Record<string, unknown>,
+                toolResult: tcResult,
+              });
+            }
           }
-          break;
+        }
 
-        case 'tool-call':
-          logger.info(`Tool call: ${part.toolName}`, { args: part.args });
-          // Store args for later matching with tool-result
-          pendingToolCalls.set(part.toolCallId, part.args as Record<string, unknown>);
-          if (request.verbose) {
-            yield {
-              type: 'tool_start',
-              tool: part.toolName,
-              toolInput: part.args as Record<string, unknown>,
-              status: `Calling ${part.toolName}...`,
-            };
-          }
-          break;
+        // If this step produced text, emit it
+        if (text && text.length > 0) {
+          pushEvent({ type: 'delta', content: text });
+        }
+      },
+    })
+      .then((result) => {
+        finalResult = { text: result.text, steps: result.steps || [] };
+        isComplete = true;
+        if (resolveWaiting) {
+          resolveWaiting();
+          resolveWaiting = null;
+        }
+      })
+      .catch((err) => {
+        finalError = err;
+        isComplete = true;
+        if (resolveWaiting) {
+          resolveWaiting();
+          resolveWaiting = null;
+        }
+      });
 
-        case 'tool-result':
-          logger.info(`Tool result: ${part.toolName}`, { hasResult: !!part.result });
-          // Get args from pending calls
-          const args = pendingToolCalls.get(part.toolCallId) || {};
-          toolCalls.push({
-            name: part.toolName,
-            args,
-            result: part.result,
-          });
-          if (request.verbose) {
-            yield {
-              type: 'tool_result',
-              tool: part.toolName,
-              toolInput: args,
-              toolResult: part.result,
-            };
-          }
-          break;
-
-        case 'text-delta':
-          fullResponse += part.textDelta;
-          yield { type: 'delta', content: part.textDelta };
-          break;
-
-        case 'step-finish':
-          logger.info(`Step ${stepCount} finished`, {
-            finishReason: (part as any).finishReason,
-            hasText: !!fullResponse,
-          });
-          break;
-
-        case 'finish':
-          logger.info('Stream finished', {
-            finishReason: (part as any).finishReason,
-            totalSteps: stepCount,
-            responseLength: fullResponse.length,
-          });
-          break;
-
-        case 'error':
-          logger.error('Stream error:', part.error);
-          yield {
-            type: 'error',
-            error: part.error instanceof Error ? part.error.message : String(part.error),
-          };
-          break;
-
-        default:
-          logger.debug(`Unhandled stream event: ${(part as any).type}`);
+    // Yield events as they come in
+    while (!isComplete || eventQueue.length > 0) {
+      if (eventQueue.length > 0) {
+        yield eventQueue.shift()!;
+      } else if (!isComplete) {
+        // Wait for next event or completion
+        await new Promise<void>((resolve) => {
+          resolveWaiting = resolve;
+        });
       }
+    }
+
+    // Check for error
+    if (finalError) {
+      throw finalError;
     }
 
     // Extract sources from all tool calls
@@ -302,9 +302,9 @@ export async function* researchQueryStream(
 
     yield {
       type: 'done',
-      response: fullResponse,
+      response: finalResult?.text || '',
       sources: sources.length > 0 ? sources : undefined,
-      steps: stepCount,
+      steps: finalResult?.steps?.length || 0,
     };
   } catch (error) {
     logger.error('Research stream error:', error);
