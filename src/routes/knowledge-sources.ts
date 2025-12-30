@@ -15,9 +15,8 @@ router.use(authenticateToken);
  *     summary: Get knowledge sources with pagination, sorting, and filtering
  *     description: |
  *       Returns knowledge sources with pagination support.
- *       - When no folder_path is provided: returns all items (up to limit, default 100)
+ *       - When no folder_path is provided (or empty string): returns all items (up to limit, default 100)
  *       - When folder_path is provided: returns only items directly in that folder (exclusive, not subfolders)
- *       - Use empty string for folder_path to get uncategorized items
  *     tags: [Knowledge Sources]
  *     security:
  *       - bearerAuth: []
@@ -26,7 +25,7 @@ router.use(authenticateToken);
  *         name: folder_path
  *         schema:
  *           type: string
- *         description: Filter by exact folder path (exclusive - only items directly in folder). Use empty string for uncategorized items.
+ *         description: Filter by exact folder path (exclusive - only items directly in folder). Omit or use empty string to return all items.
  *       - in: query
  *         name: search
  *         schema:

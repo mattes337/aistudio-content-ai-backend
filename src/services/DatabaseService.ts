@@ -580,14 +580,12 @@ export class DatabaseService {
     let paramCount = 1;
 
     // Build WHERE conditions
-    if (folder_path !== undefined) {
+    // Only filter by folder_path if a non-empty value is provided
+    // Empty string or undefined = return all items
+    if (folder_path !== undefined && folder_path !== '') {
       // Filter by exact folder path (exclusive - only items directly in folder)
-      if (folder_path === '' || folder_path === null) {
-        conditions.push('ks.folder_path IS NULL');
-      } else {
-        conditions.push(`ks.folder_path = $${paramCount++}`);
-        values.push(folder_path);
-      }
+      conditions.push(`ks.folder_path = $${paramCount++}`);
+      values.push(folder_path);
     }
 
     if (search) {
