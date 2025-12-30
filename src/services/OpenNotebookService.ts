@@ -220,12 +220,21 @@ export class OpenNotebookService {
 
     logger.debug(`Ask models: strategy=${strategyModel}, answer=${answerModel}, final=${finalAnswerModel}`);
 
-    return this.makeRequest<AskResponse>('/api/search/ask/simple', 'POST', {
-      question: request.question,
-      strategy_model: strategyModel,
-      answer_model: answerModel,
-      final_answer_model: finalAnswerModel,
-    });
+    try {
+      return await this.makeRequest<AskResponse>('/api/search/ask/simple', 'POST', {
+        question: request.question,
+        strategy_model: strategyModel,
+        answer_model: answerModel,
+        final_answer_model: finalAnswerModel,
+      });
+    } catch (error) {
+      // Log available models to help debug model ID issues
+      if (error instanceof Error && error.message.includes('not found')) {
+        const models = await this.getModels();
+        logger.error(`Model not found. Available models: ${JSON.stringify(models.map(m => m.id))}`);
+      }
+      throw error;
+    }
   }
 
   /**
@@ -256,7 +265,13 @@ export class OpenNotebookService {
   static async executeChat(request: ExecuteChatRequest): Promise<ExecuteChatResponse> {
     logger.info(`Executing chat in session: ${request.session_id}`);
 
-    return this.makeRequest<ExecuteChatResponse>('/api/chat/execute', 'POST', request);
+    // API requires context field (can be empty object)
+    return this.makeRequest<ExecuteChatResponse>('/api/chat/execute', 'POST', {
+      session_id: request.session_id,
+      message: request.message,
+      context: request.context || {},
+      model_override: request.model_override,
+    });
   }
 
   /**
@@ -266,7 +281,11 @@ export class OpenNotebookService {
     notebookId: string,
     contextConfig?: Record<string, any>
   ): Promise<{ context: Record<string, any>; token_count: number; char_count: number }> {
-    return this.makeRequest(`/api/notebooks/${notebookId}/context`, 'POST', contextConfig || {});
+    // API expects notebook_id in body, not just URL
+    return this.makeRequest(`/api/notebooks/${notebookId}/context`, 'POST', {
+      notebook_id: notebookId,
+      ...contextConfig,
+    });
   }
 
   /**
@@ -316,6 +335,18 @@ export class OpenNotebookService {
       }
       return result;
     });
+  }
+
+  /**
+   * Get available models from Open Notebook
+   */
+  static async getModels(): Promise<{ id: string; name: string; provider?: string }[]> {
+    try {
+      return this.makeRequest('/api/models');
+    } catch (error) {
+      logger.warn('Failed to fetch models from Open Notebook:', error);
+      return [];
+    }
   }
 
   /**
