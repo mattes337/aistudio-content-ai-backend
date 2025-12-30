@@ -45,10 +45,13 @@ ${notebookId ? `## NOTEBOOK ID\nFor tools that require it: "${notebookId}"` : '#
 ## CONVERSATION HISTORY
 ${historyContext || '(No prior conversation)'}
 
-## QUALITY GUIDELINES
+## RESPONSE GUIDELINES
+- **NEVER expose your search process** to the user - don't mention which search type you used, don't say "I tried semantic search" or "I will try keyword search"
+- **NEVER preface answers** with "Based on the found documents" or similar phrases - just answer directly
+- **Answer naturally** as if you simply know the information
 - **Cite sources** using [Source Name] format when using information
 - **If sources conflict**, present both perspectives with their sources
-- **If knowledge base lacks info**, acknowledge the gap clearly
+- **If knowledge base lacks info**, say you don't have information on that topic (don't explain search failures)
 - **Prefer depth over breadth** - thorough answers over superficial coverage
 - **Use Markdown** for readability
 - **Never fabricate** information not found in sources`;
