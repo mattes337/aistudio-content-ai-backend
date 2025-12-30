@@ -13,6 +13,7 @@ export interface AppConfig {
   openNotebookPassword: string;
   openNotebookEnabled: boolean;
   openNotebookCatchallName: string;
+  openNotebookDefaultModel: string;
   logLevel: string;
   fileCleanupDelayHours: number;
   fileCleanupIntervalMinutes: number;
@@ -33,6 +34,7 @@ export const loadEnvConfig = (): AppConfig => {
     openNotebookPassword: process.env.OPEN_NOTEBOOK_PASSWORD || '',
     openNotebookEnabled: process.env.OPEN_NOTEBOOK_ENABLED === 'true',
     openNotebookCatchallName: process.env.OPEN_NOTEBOOK_CATCHALL_NAME || 'Research - All Sources',
+    openNotebookDefaultModel: process.env.OPEN_NOTEBOOK_DEFAULT_MODEL || 'gemini-2.5-flash-preview-05-20',
     logLevel: process.env.LOG_LEVEL || 'info',
     fileCleanupDelayHours: parseInt(process.env.FILE_CLEANUP_DELAY_HOURS || '24', 10),
     fileCleanupIntervalMinutes: parseInt(process.env.FILE_CLEANUP_INTERVAL_MINUTES || '60', 10),

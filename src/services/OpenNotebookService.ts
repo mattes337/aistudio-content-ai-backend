@@ -158,8 +158,8 @@ export class OpenNotebookService {
   static async ask(request: AskRequest): Promise<AskResponse> {
     logger.info(`Asking knowledge base: "${request.question.substring(0, 50)}..."`);
 
-    // Open Notebook API requires model parameters
-    const defaultModel = 'anthropic/claude-sonnet-4-20250514';
+    // Open Notebook API requires model parameters - use config default
+    const defaultModel = config.openNotebookDefaultModel;
     return this.makeRequest<AskResponse>('/api/search/ask/simple', 'POST', {
       question: request.question,
       strategy_model: request.strategy_model || defaultModel,
