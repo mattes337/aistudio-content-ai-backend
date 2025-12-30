@@ -820,14 +820,15 @@ export class DatabaseService {
   // Recipient operations
   static async createRecipient(recipientData: CreateRecipientRequest): Promise<any> {
     const query = `
-      INSERT INTO recipients (email, channel_id, status)
-      VALUES ($1, $2, $3)
+      INSERT INTO recipients (email, channel_id, status, data)
+      VALUES ($1, $2, $3, $4)
       RETURNING *
     `;
     const values = [
       recipientData.email,
       recipientData.channel_id,
-      recipientData.status || 'subscribed'
+      recipientData.status || 'subscribed',
+      JSON.stringify(recipientData.data || {})
     ];
 
     const result = await pool.query(query, values);
@@ -876,6 +877,10 @@ export class DatabaseService {
       setParts.push(`last_notification_date = $${paramCount++}`);
       values.push(recipientData.last_notification_date);
     }
+    if (recipientData.data !== undefined) {
+      setParts.push(`data = $${paramCount++}`);
+      values.push(JSON.stringify(recipientData.data));
+    }
 
     setParts.push(`updated_at = $${paramCount++}`);
     values.push(new Date());
@@ -883,7 +888,7 @@ export class DatabaseService {
     values.push(recipientData.id);
 
     const query = `
-      UPDATE recipients 
+      UPDATE recipients
       SET ${setParts.join(', ')}
       WHERE id = $${paramCount}
       RETURNING *

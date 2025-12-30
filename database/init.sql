@@ -125,6 +125,7 @@ CREATE TABLE IF NOT EXISTS recipients (
     registration_date TIMESTAMPTZ NOT NULL DEFAULT now(),
     last_notification_date TIMESTAMPTZ,
     status recipient_status NOT NULL DEFAULT 'subscribed',
+    data JSONB NOT NULL DEFAULT '{}',
     created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
     updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
 );
@@ -140,6 +141,7 @@ CREATE INDEX IF NOT EXISTS idx_posts_status ON posts(status);
 CREATE INDEX IF NOT EXISTS idx_posts_publish_date ON posts(publish_date);
 CREATE INDEX IF NOT EXISTS idx_knowledge_chunks_source_id ON knowledge_chunks(knowledge_source_id);
 CREATE INDEX IF NOT EXISTS idx_recipients_channel_id ON recipients(channel_id);
+CREATE INDEX IF NOT EXISTS idx_recipients_data ON recipients USING GIN (data);
 
 CREATE TABLE IF NOT EXISTS newsletters (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
