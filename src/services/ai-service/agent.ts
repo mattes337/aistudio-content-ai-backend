@@ -211,17 +211,24 @@ export async function* researchQueryStream(
     // Use fullStream for real-time events
     let fullResponse = '';
     let stepCount = 0;
+    const pendingToolCalls = new Map<string, Record<string, unknown>>(); // toolCallId -> args
 
     for await (const part of result.fullStream) {
+      logger.debug(`Stream event: ${part.type}`, { partType: part.type });
+
       switch (part.type) {
         case 'step-start':
           stepCount++;
+          logger.info(`Step ${stepCount} started`);
           if (request.verbose) {
             yield { type: 'status', status: `Step ${stepCount}: Processing...` };
           }
           break;
 
         case 'tool-call':
+          logger.info(`Tool call: ${part.toolName}`, { args: part.args });
+          // Store args for later matching with tool-result
+          pendingToolCalls.set(part.toolCallId, part.args as Record<string, unknown>);
           if (request.verbose) {
             yield {
               type: 'tool_start',
@@ -233,16 +240,19 @@ export async function* researchQueryStream(
           break;
 
         case 'tool-result':
+          logger.info(`Tool result: ${part.toolName}`, { hasResult: !!part.result });
+          // Get args from pending calls
+          const args = pendingToolCalls.get(part.toolCallId) || {};
           toolCalls.push({
             name: part.toolName,
-            args: part.args,
+            args,
             result: part.result,
           });
           if (request.verbose) {
             yield {
               type: 'tool_result',
               tool: part.toolName,
-              toolInput: part.args as Record<string, unknown>,
+              toolInput: args,
               toolResult: part.result,
             };
           }
@@ -253,12 +263,31 @@ export async function* researchQueryStream(
           yield { type: 'delta', content: part.textDelta };
           break;
 
+        case 'step-finish':
+          logger.info(`Step ${stepCount} finished`, {
+            finishReason: (part as any).finishReason,
+            hasText: !!fullResponse,
+          });
+          break;
+
+        case 'finish':
+          logger.info('Stream finished', {
+            finishReason: (part as any).finishReason,
+            totalSteps: stepCount,
+            responseLength: fullResponse.length,
+          });
+          break;
+
         case 'error':
+          logger.error('Stream error:', part.error);
           yield {
             type: 'error',
             error: part.error instanceof Error ? part.error.message : String(part.error),
           };
           break;
+
+        default:
+          logger.debug(`Unhandled stream event: ${(part as any).type}`);
       }
     }
 
