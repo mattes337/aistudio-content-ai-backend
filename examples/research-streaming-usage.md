@@ -14,6 +14,11 @@ interface ResearchStreamRequest {
   channelId?: string;      // Optional channel filter
   history?: ChatMessage[]; // Conversation history
   verbose?: boolean;       // Enable detailed tool call streaming
+
+  // Optional: Override default models for Open Notebook API
+  strategyModel?: string;     // Model for retrieval strategy (default: env OPEN_NOTEBOOK_DEFAULT_MODEL)
+  answerModel?: string;       // Model for generating answers (default: env OPEN_NOTEBOOK_DEFAULT_MODEL)
+  finalAnswerModel?: string;  // Model for final synthesis (default: env OPEN_NOTEBOOK_DEFAULT_MODEL)
 }
 
 interface ChatMessage {

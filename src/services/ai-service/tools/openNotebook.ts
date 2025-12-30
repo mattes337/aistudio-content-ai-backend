@@ -2,6 +2,20 @@ import { z } from 'zod/v3';
 import { tool } from 'ai';
 import { OpenNotebookService } from '../../OpenNotebookService';
 import logger from '../../../utils/logger';
+import type { OpenNotebookModelConfig } from '../types';
+
+// Request context for passing model config to tools
+let currentModelConfig: OpenNotebookModelConfig | undefined;
+
+/** Set the model config for the current request */
+export function setRequestModelConfig(config: OpenNotebookModelConfig | undefined): void {
+  currentModelConfig = config;
+}
+
+/** Clear the model config after request completes */
+export function clearRequestModelConfig(): void {
+  currentModelConfig = undefined;
+}
 
 // Search tool - searches the knowledge base
 const searchInputSchema = z.object({
@@ -60,7 +74,12 @@ export const askKnowledgeTool = tool({
   execute: async ({ question }) => {
     logger.info(`Tool: askKnowledge - question: "${question.substring(0, 50)}..."`);
     try {
-      const result = await OpenNotebookService.ask({ question });
+      const result = await OpenNotebookService.ask({
+        question,
+        strategy_model: currentModelConfig?.strategyModel,
+        answer_model: currentModelConfig?.answerModel,
+        final_answer_model: currentModelConfig?.finalAnswerModel,
+      });
       return {
         success: true,
         answer: result.answer,

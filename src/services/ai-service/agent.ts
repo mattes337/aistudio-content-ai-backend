@@ -1,6 +1,6 @@
 import { generateText, stepCountIs } from 'ai';
 import { createModelConfig, selectModel } from './models';
-import { researchTools } from './tools';
+import { researchTools, setRequestModelConfig, clearRequestModelConfig } from './tools';
 import type {
   AgentQuery,
   AgentResponse,
@@ -120,55 +120,62 @@ function extractSourcesFromToolCalls(
 export async function researchQuery(request: AgentQuery): Promise<AgentResponse> {
   logger.info(`Research agent query: "${request.query.substring(0, 50)}..."`);
 
-  return withErrorHandling(
-    async () => {
-      // Build conversation history context
-      const historyContext =
-        request.history
-          ?.map((msg: ChatMessage) => `${msg.role === 'user' ? 'User' : 'Assistant'}: ${msg.text}`)
-          .join('\n') || '';
+  // Set model config for tools to use
+  setRequestModelConfig(request.modelConfig);
 
-      // Build system prompt with retrieval strategy (no pre-fetch)
-      const systemPrompt = buildRetrievalSystemPrompt(request.notebookId, historyContext);
+  try {
+    return await withErrorHandling(
+      async () => {
+        // Build conversation history context
+        const historyContext =
+          request.history
+            ?.map((msg: ChatMessage) => `${msg.role === 'user' ? 'User' : 'Assistant'}: ${msg.text}`)
+            .join('\n') || '';
 
-      // Run agent with full tool set - agent decides what to retrieve
-      const modelConfig = createModelConfig(selectModel('agent'));
-      const toolCalls: { name: string; result: unknown }[] = [];
+        // Build system prompt with retrieval strategy (no pre-fetch)
+        const systemPrompt = buildRetrievalSystemPrompt(request.notebookId, historyContext);
 
-      const result = await generateText({
-        model: modelConfig.model,
-        temperature: modelConfig.temperature,
-        maxOutputTokens: modelConfig.maxTokens,
-        providerOptions: modelConfig.providerOptions,
-        system: systemPrompt,
-        prompt: request.query,
-        tools: researchTools,
-        // Allow more steps for multi-stage retrieval
-        stopWhen: stepCountIs(request.maxSteps || 10),
-        onStepFinish: ({ toolCalls: stepToolCalls }) => {
-          if (stepToolCalls) {
-            for (const tc of stepToolCalls) {
-              toolCalls.push({
-                name: tc.toolName,
-                result: (tc as any).result,
-              });
+        // Run agent with full tool set - agent decides what to retrieve
+        const modelConfig = createModelConfig(selectModel('agent'));
+        const toolCalls: { name: string; result: unknown }[] = [];
+
+        const result = await generateText({
+          model: modelConfig.model,
+          temperature: modelConfig.temperature,
+          maxOutputTokens: modelConfig.maxTokens,
+          providerOptions: modelConfig.providerOptions,
+          system: systemPrompt,
+          prompt: request.query,
+          tools: researchTools,
+          // Allow more steps for multi-stage retrieval
+          stopWhen: stepCountIs(request.maxSteps || 10),
+          onStepFinish: ({ toolCalls: stepToolCalls }) => {
+            if (stepToolCalls) {
+              for (const tc of stepToolCalls) {
+                toolCalls.push({
+                  name: tc.toolName,
+                  result: (tc as any).result,
+                });
+              }
             }
-          }
-        },
-      });
+          },
+        });
 
-      // Extract sources from all tool calls
-      const sources = extractSourcesFromToolCalls(toolCalls);
+        // Extract sources from all tool calls
+        const sources = extractSourcesFromToolCalls(toolCalls);
 
-      return {
-        response: result.text,
-        sources: sources.length > 0 ? sources : undefined,
-        toolCalls: toolCalls.length > 0 ? toolCalls : undefined,
-        steps: result.steps?.length,
-      };
-    },
-    'researchQuery'
-  );
+        return {
+          response: result.text,
+          sources: sources.length > 0 ? sources : undefined,
+          toolCalls: toolCalls.length > 0 ? toolCalls : undefined,
+          steps: result.steps?.length,
+        };
+      },
+      'researchQuery'
+    );
+  } finally {
+    clearRequestModelConfig();
+  }
 }
 
 /**
@@ -179,6 +186,9 @@ export async function* researchQueryStream(
   request: ResearchStreamOptions
 ): AsyncGenerator<ResearchStreamChunk> {
   logger.info(`Research agent stream: "${request.query.substring(0, 50)}..." verbose=${request.verbose}`);
+
+  // Set model config for tools to use
+  setRequestModelConfig(request.modelConfig);
 
   // Event queue for yielding from callbacks
   const eventQueue: ResearchStreamChunk[] = [];
@@ -312,6 +322,8 @@ export async function* researchQueryStream(
       type: 'error',
       error: error instanceof Error ? error.message : 'Unknown error occurred',
     };
+  } finally {
+    clearRequestModelConfig();
   }
 }
 

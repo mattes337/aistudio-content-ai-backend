@@ -4,6 +4,8 @@ import {
   chatWithNotebookTool,
   buildContextTool,
   searchMultipleTool,
+  setRequestModelConfig,
+  clearRequestModelConfig,
 } from './openNotebook';
 
 // Tool registry for agent mode (basic tools)
@@ -27,4 +29,6 @@ export {
   chatWithNotebookTool,
   buildContextTool,
   searchMultipleTool,
+  setRequestModelConfig,
+  clearRequestModelConfig,
 };

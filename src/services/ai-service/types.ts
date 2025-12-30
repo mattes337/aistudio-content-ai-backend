@@ -117,6 +117,8 @@ export interface AgentQuery {
   history?: ChatMessage[];
   notebookId?: string;
   maxSteps?: number;
+  /** Optional model configuration for Open Notebook API */
+  modelConfig?: OpenNotebookModelConfig;
 }
 
 /** Reference to a knowledge source used in a response */
@@ -174,6 +176,16 @@ export interface ResearchStreamChunk {
   error?: string;
 }
 
+/** Model configuration for Open Notebook API calls */
+export interface OpenNotebookModelConfig {
+  /** Model for retrieval strategy planning */
+  strategyModel?: string;
+  /** Model for generating intermediate answers */
+  answerModel?: string;
+  /** Model for synthesizing final answer */
+  finalAnswerModel?: string;
+}
+
 export interface ResearchStreamOptions {
   query: string;
   channelId?: string;
@@ -182,4 +194,6 @@ export interface ResearchStreamOptions {
   maxSteps?: number;
   /** Stream verbose output including tool calls and intermediate results */
   verbose?: boolean;
+  /** Optional model configuration for Open Notebook API */
+  modelConfig?: OpenNotebookModelConfig;
 }

@@ -289,7 +289,7 @@ export class AIController {
 
   static async researchQuery(req: Request, res: Response) {
     try {
-      const { query, channelId, history } = req.body;
+      const { query, channelId, history, strategyModel, answerModel, finalAnswerModel } = req.body;
       if (!query) {
         return res.status(400).json({ message: 'Query is required' });
       }
@@ -309,11 +309,17 @@ export class AIController {
         logger.warn('Failed to look up catchall notebook:', err);
       }
 
+      // Build optional model config if any model params provided
+      const modelConfig = (strategyModel || answerModel || finalAnswerModel)
+        ? { strategyModel, answerModel, finalAnswerModel }
+        : undefined;
+
       const result = await AIService.researchQuery({
         query,
         channelId,
         history,
         notebookId,
+        modelConfig,
       });
       res.json(result);
     } catch (error) {
@@ -324,7 +330,7 @@ export class AIController {
 
   static async researchQueryStream(req: Request, res: Response) {
     try {
-      const { query, channelId, history, verbose } = req.body;
+      const { query, channelId, history, verbose, strategyModel, answerModel, finalAnswerModel } = req.body;
       if (!query) {
         return res.status(400).json({ message: 'Query is required' });
       }
@@ -343,6 +349,11 @@ export class AIController {
       } catch (err) {
         logger.warn('Failed to look up catchall notebook:', err);
       }
+
+      // Build optional model config if any model params provided
+      const modelConfig = (strategyModel || answerModel || finalAnswerModel)
+        ? { strategyModel, answerModel, finalAnswerModel }
+        : undefined;
 
       // Set up SSE headers
       res.setHeader('Content-Type', 'text/event-stream');
@@ -357,6 +368,7 @@ export class AIController {
         history,
         notebookId,
         verbose: verbose === true,
+        modelConfig,
       })) {
         res.write(`data: ${JSON.stringify(chunk)}\n\n`);
       }
