@@ -158,7 +158,14 @@ export class OpenNotebookService {
   static async ask(request: AskRequest): Promise<AskResponse> {
     logger.info(`Asking knowledge base: "${request.question.substring(0, 50)}..."`);
 
-    return this.makeRequest<AskResponse>('/api/search/ask/simple', 'POST', request);
+    // Open Notebook API requires model parameters
+    const defaultModel = 'anthropic/claude-sonnet-4-20250514';
+    return this.makeRequest<AskResponse>('/api/search/ask/simple', 'POST', {
+      question: request.question,
+      strategy_model: request.strategy_model || defaultModel,
+      answer_model: request.answer_model || defaultModel,
+      final_answer_model: request.final_answer_model || defaultModel,
+    });
   }
 
   /**
