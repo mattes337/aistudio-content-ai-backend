@@ -44,7 +44,7 @@ const channelSchema = Joi.object({
   name: Joi.string().min(1).max(255).required(),
   url: Joi.string().uri().max(2048).required(),
   type: Joi.string().valid('website', 'instagram', 'facebook', 'x', 'newsletter').required(),
-  platformApi: Joi.string().valid('none', 'wordpress', 'instagram_graph', 'facebook_graph', 'x_api', 'email_api').required(),
+  platform_api: Joi.string().valid('none', 'wordpress', 'instagram_graph', 'facebook_graph', 'x_api', 'email_api').required(),
   credentials: Joi.when('type', {
     is: 'website',
     then: websiteCredentialsSchema.optional(),
@@ -321,7 +321,7 @@ export const validateKnowledgeAsk = validateBody(knowledgeAskSchema);
 export const validateInferMetadata = validateBody(inferMetadataSchema);
 
 // Lenient validation exports - logs unknown properties but accepts requests
-export const validateChannelLenient = validateBodyLenient(channelSchema, ['name', 'url', 'type', 'platformApi', 'credentials', 'data', 'metadata']);
+export const validateChannelLenient = validateBodyLenient(channelSchema, ['name', 'url', 'type', 'platform_api', 'credentials', 'data', 'metadata']);
 export const validateMediaAssetLenient = validateBodyLenient(mediaAssetSchema, ['title', 'type', 'file_path', 'data']);
 export const validateArticleLenient = validateBodyLenient(articleSchema, ['title', 'status', 'publish_date', 'channel_id', 'data']);
 export const validatePostLenient = validateBodyLenient(postSchema, ['status', 'publish_date', 'platform', 'linked_article_id', 'data']);

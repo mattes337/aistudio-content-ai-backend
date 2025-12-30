@@ -96,7 +96,7 @@ const options = {
         },
         CreateChannelRequest: {
           type: 'object',
-          required: ['name', 'url', 'type', 'platformApi'],
+          required: ['name', 'url', 'type', 'platform_api'],
           properties: {
             name: {
               type: 'string',
@@ -115,7 +115,7 @@ const options = {
               enum: ['website', 'instagram', 'facebook', 'x', 'newsletter'],
               description: 'Channel type'
             },
-            platformApi: {
+            platform_api: {
               type: 'string',
               enum: ['none', 'wordpress', 'instagram_graph', 'facebook_graph', 'x_api', 'email_api'],
               description: 'Platform API type'
@@ -150,7 +150,7 @@ const options = {
               enum: ['website', 'instagram', 'facebook', 'x', 'newsletter'],
               description: 'Channel type'
             },
-            platformApi: {
+            platform_api: {
               type: 'string',
               enum: ['none', 'wordpress', 'instagram_graph', 'facebook_graph', 'x_api', 'email_api'],
               description: 'Platform API type'
