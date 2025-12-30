@@ -118,7 +118,7 @@ export class OpenNotebookService {
    * Get all notebooks
    */
   static async getNotebooks(): Promise<Notebook[]> {
-    return this.makeRequest<Notebook[]>('/notebooks');
+    return this.makeRequest<Notebook[]>('/api/notebooks');
   }
 
   /**
@@ -135,7 +135,7 @@ export class OpenNotebookService {
   static async search(request: SearchRequest): Promise<SearchResponse> {
     logger.info(`Searching knowledge base: "${request.query.substring(0, 50)}..."`);
 
-    return this.makeRequest<SearchResponse>('/search', 'POST', {
+    return this.makeRequest<SearchResponse>('/api/search', 'POST', {
       query: request.query,
       type: request.type || 'text',
       limit: request.limit || 100,
@@ -151,14 +151,14 @@ export class OpenNotebookService {
   static async ask(request: AskRequest): Promise<AskResponse> {
     logger.info(`Asking knowledge base: "${request.question.substring(0, 50)}..."`);
 
-    return this.makeRequest<AskResponse>('/search/ask/simple', 'POST', request);
+    return this.makeRequest<AskResponse>('/api/search/ask/simple', 'POST', request);
   }
 
   /**
    * Get all chat sessions for a notebook
    */
   static async getChatSessions(notebookId: string): Promise<ChatSession[]> {
-    return this.makeRequest<ChatSession[]>(`/chat/sessions?notebook_id=${notebookId}`);
+    return this.makeRequest<ChatSession[]>(`/api/chat/sessions?notebook_id=${notebookId}`);
   }
 
   /**
@@ -169,7 +169,7 @@ export class OpenNotebookService {
     title?: string,
     modelOverride?: string
   ): Promise<ChatSession> {
-    return this.makeRequest<ChatSession>('/chat/sessions', 'POST', {
+    return this.makeRequest<ChatSession>('/api/chat/sessions', 'POST', {
       notebook_id: notebookId,
       title,
       model_override: modelOverride,
@@ -182,7 +182,7 @@ export class OpenNotebookService {
   static async executeChat(request: ExecuteChatRequest): Promise<ExecuteChatResponse> {
     logger.info(`Executing chat in session: ${request.session_id}`);
 
-    return this.makeRequest<ExecuteChatResponse>('/chat/execute', 'POST', request);
+    return this.makeRequest<ExecuteChatResponse>('/api/chat/execute', 'POST', request);
   }
 
   /**
@@ -192,10 +192,7 @@ export class OpenNotebookService {
     notebookId: string,
     contextConfig?: Record<string, any>
   ): Promise<{ context: Record<string, any>; token_count: number; char_count: number }> {
-    return this.makeRequest('/chat/context', 'POST', {
-      notebook_id: notebookId,
-      ...contextConfig,
-    });
+    return this.makeRequest(`/api/notebooks/${notebookId}/context`, 'POST', contextConfig || {});
   }
 
   /**
@@ -203,7 +200,7 @@ export class OpenNotebookService {
    */
   static async healthCheck(): Promise<boolean> {
     try {
-      await fetch(`${this.baseUrl}/docs`);
+      await fetch(`${this.baseUrl}/api/config`);
       return true;
     } catch {
       return false;
