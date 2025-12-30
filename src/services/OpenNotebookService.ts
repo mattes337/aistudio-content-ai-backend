@@ -197,18 +197,34 @@ export class OpenNotebookService {
   }
 
   /**
+   * Format model ID for Open Notebook API (requires "model:" prefix)
+   */
+  private static formatModelId(modelId: string): string {
+    if (modelId.startsWith('model:')) {
+      return modelId;
+    }
+    return `model:${modelId}`;
+  }
+
+  /**
    * Ask a question and get an answer (non-streaming)
    */
   static async ask(request: AskRequest): Promise<AskResponse> {
     logger.info(`Asking knowledge base: "${request.question.substring(0, 50)}..."`);
 
-    // Open Notebook API requires model parameters - use config default
+    // Open Notebook API requires model parameters with "model:" prefix
     const defaultModel = config.openNotebookDefaultModel;
+    const strategyModel = this.formatModelId(request.strategy_model || defaultModel);
+    const answerModel = this.formatModelId(request.answer_model || defaultModel);
+    const finalAnswerModel = this.formatModelId(request.final_answer_model || defaultModel);
+
+    logger.debug(`Ask models: strategy=${strategyModel}, answer=${answerModel}, final=${finalAnswerModel}`);
+
     return this.makeRequest<AskResponse>('/api/search/ask/simple', 'POST', {
       question: request.question,
-      strategy_model: request.strategy_model || defaultModel,
-      answer_model: request.answer_model || defaultModel,
-      final_answer_model: request.final_answer_model || defaultModel,
+      strategy_model: strategyModel,
+      answer_model: answerModel,
+      final_answer_model: finalAnswerModel,
     });
   }
 
