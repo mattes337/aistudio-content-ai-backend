@@ -8,16 +8,42 @@ if (!fs.existsSync(uploadsDir)) {
   fs.mkdirSync(uploadsDir, { recursive: true });
 }
 
+// Sanitize filename to remove problematic characters
+const sanitizeFilename = (filename: string): string => {
+  // Get name without extension
+  const ext = path.extname(filename);
+  const name = path.basename(filename, ext);
+
+  // Replace spaces with hyphens, remove special chars, lowercase
+  const sanitized = name
+    .toLowerCase()
+    .replace(/\s+/g, '-')           // spaces to hyphens
+    .replace(/[^a-z0-9\-_]/g, '')   // remove special chars
+    .replace(/-+/g, '-')            // collapse multiple hyphens
+    .replace(/^-|-$/g, '')          // trim hyphens from ends
+    .substring(0, 100);             // limit length
+
+  return sanitized || 'file';
+};
+
+// Generate short unique suffix for deduplication
+const generateDedup = (): string => {
+  const timestamp = Date.now().toString(36);  // base36 timestamp
+  const random = Math.random().toString(36).substring(2, 6);  // 4 random chars
+  return `${timestamp}-${random}`;
+};
+
 // Configure multer for file uploads
 const storage = multer.diskStorage({
   destination: (req, file, cb) => {
     cb(null, uploadsDir);
   },
   filename: (req, file, cb) => {
-    // Create unique filename with timestamp
-    const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
-    const extension = path.extname(file.originalname);
-    cb(null, file.fieldname + '-' + uniqueSuffix + extension);
+    // Keep original filename with dedup suffix
+    const sanitizedName = sanitizeFilename(file.originalname);
+    const extension = path.extname(file.originalname).toLowerCase();
+    const dedup = generateDedup();
+    cb(null, `${sanitizedName}-${dedup}${extension}`);
   }
 });
 
