@@ -17,6 +17,7 @@ export class KnowledgeSourceController {
       const options: KnowledgeSourceQueryOptions = {
         folder_path: req.query.folder_path as string | undefined,
         search: req.query.search as string | undefined,
+        search_content: req.query.search_content === 'true',
         type: req.query.type as KnowledgeSourceType | undefined,
         status: req.query.status as ProcessingStatus | undefined,
         sort_by: req.query.sort_by as 'name' | 'created_at' | 'updated_at' | 'type' | undefined,

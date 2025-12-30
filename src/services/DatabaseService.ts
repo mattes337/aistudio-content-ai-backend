@@ -559,6 +559,7 @@ export class DatabaseService {
     const {
       folder_path,
       search,
+      search_content = false,
       type,
       status,
       sort_by = 'created_at',
@@ -589,8 +590,21 @@ export class DatabaseService {
     }
 
     if (search) {
-      conditions.push(`ks.name ILIKE $${paramCount++}`);
-      values.push(`%${search}%`);
+      const searchPattern = `%${search}%`;
+      if (search_content) {
+        // Search in name OR in chunk content
+        conditions.push(`(ks.name ILIKE $${paramCount} OR EXISTS (
+          SELECT 1 FROM knowledge_chunks kc_search
+          WHERE kc_search.knowledge_source_id = ks.id
+          AND kc_search.content ILIKE $${paramCount}
+        ))`);
+        paramCount++;
+        values.push(searchPattern);
+      } else {
+        // Search only in name
+        conditions.push(`ks.name ILIKE $${paramCount++}`);
+        values.push(searchPattern);
+      }
     }
 
     if (type) {

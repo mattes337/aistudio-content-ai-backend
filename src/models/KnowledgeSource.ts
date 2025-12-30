@@ -54,7 +54,8 @@ export interface FolderTreeNode {
 // Pagination, sorting, and filtering options for knowledge sources
 export interface KnowledgeSourceQueryOptions {
   folder_path?: string;   // Filter by exact folder path (exclusive - only items directly in folder)
-  search?: string;        // Search by name
+  search?: string;        // Search by name (and optionally content)
+  search_content?: boolean; // If true, also search in chunk content
   type?: KnowledgeSourceType;  // Filter by type
   status?: ProcessingStatus;   // Filter by status
   sort_by?: 'name' | 'created_at' | 'updated_at' | 'type';

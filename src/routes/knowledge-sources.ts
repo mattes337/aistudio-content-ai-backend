@@ -30,7 +30,13 @@ router.use(authenticateToken);
  *         name: search
  *         schema:
  *           type: string
- *         description: Search by name (case-insensitive partial match)
+ *         description: Search by name (case-insensitive partial match). Use with search_content=true to also search chunk content.
+ *       - in: query
+ *         name: search_content
+ *         schema:
+ *           type: boolean
+ *           default: false
+ *         description: If true, also search in knowledge chunk content (not just name)
  *       - in: query
  *         name: type
  *         schema:
