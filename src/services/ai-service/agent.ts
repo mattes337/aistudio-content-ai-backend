@@ -1,65 +1,129 @@
 import { generateText, stepCountIs } from 'ai';
 import { createModelConfig, selectModel } from './models';
 import { researchTools } from './tools';
-import { OpenNotebookService } from '../OpenNotebookService';
-import type { AgentQuery, AgentResponse, AgentTask, ChatMessage } from './types';
+import type { AgentQuery, AgentResponse, AgentTask, ChatMessage, SourceReference } from './types';
 import { withErrorHandling } from './errors';
 import logger from '../../utils/logger';
+
+/**
+ * Build the retrieval strategy system prompt for agent-driven knowledge retrieval
+ */
+function buildRetrievalSystemPrompt(
+  notebookId: string | undefined,
+  historyContext: string
+): string {
+  return `You are a Research Agent with access to a knowledge base through multiple tools.
+
+## RETRIEVAL STRATEGY
+You decide when and how to retrieve information. Follow this strategy:
+
+1. **START** with searchKnowledge(type: "vector") for semantic matches on the user's question
+2. **IF** results are sparse or low-scoring, try searchKnowledge(type: "text") for keyword matches
+3. **FOR** complex questions requiring reasoning, use askKnowledge to get a synthesized answer
+4. **FOR** comparing multiple topics, use searchMultiple to search several queries in parallel
+5. **FOR** follow-up depth on a topic, use chatWithNotebook for multi-turn exploration
+6. **FOR** comprehensive overview, use buildContext to get full notebook context
+7. **ONLY** respond when you have sufficient context - it's better to search more than guess
+
+## AVAILABLE TOOLS
+- **searchKnowledge**: Find specific content (vector=semantic, text=keyword)
+- **askKnowledge**: Get AI-synthesized answer from multiple sources
+- **searchMultiple**: Search multiple queries in parallel (max 5)
+- **chatWithNotebook**: Multi-turn conversation for depth (requires notebookId)
+- **buildContext**: Get full notebook context (requires notebookId)
+
+${notebookId ? `## NOTEBOOK ID\nFor tools that require it: "${notebookId}"` : '## NOTE\nNo notebook ID provided - chatWithNotebook and buildContext are unavailable.'}
+
+## CONVERSATION HISTORY
+${historyContext || '(No prior conversation)'}
+
+## QUALITY GUIDELINES
+- **Cite sources** using [Source Name] format when using information
+- **If sources conflict**, present both perspectives with their sources
+- **If knowledge base lacks info**, acknowledge the gap clearly
+- **Prefer depth over breadth** - thorough answers over superficial coverage
+- **Use Markdown** for readability
+- **Never fabricate** information not found in sources`;
+}
+
+/**
+ * Extract source references from tool call results
+ */
+function extractSourcesFromToolCalls(
+  toolCalls: { name: string; result: unknown }[]
+): SourceReference[] {
+  const sources: SourceReference[] = [];
+  const seenIds = new Set<string>();
+
+  for (const tc of toolCalls) {
+    const result = tc.result as Record<string, unknown>;
+    if (!result?.success) continue;
+
+    // Extract from searchKnowledge results
+    if (tc.name === 'searchKnowledge' && Array.isArray(result.results)) {
+      for (const r of result.results as { content: string; source: string; score?: number }[]) {
+        const id = `${r.source}-${r.content.substring(0, 50)}`;
+        if (!seenIds.has(id)) {
+          seenIds.add(id);
+          sources.push({
+            id,
+            name: r.source,
+            excerpt: r.content.substring(0, 200),
+            score: r.score || 0,
+          });
+        }
+      }
+    }
+
+    // Extract from searchMultiple results
+    if (tc.name === 'searchMultiple' && Array.isArray(result.searches)) {
+      for (const search of result.searches as { query: string; results: { content: string; source: string; score?: number }[] }[]) {
+        for (const r of search.results) {
+          const id = `${r.source}-${r.content.substring(0, 50)}`;
+          if (!seenIds.has(id)) {
+            seenIds.add(id);
+            sources.push({
+              id,
+              name: r.source,
+              excerpt: r.content.substring(0, 200),
+              score: r.score || 0,
+            });
+          }
+        }
+      }
+    }
+
+    // Extract from askKnowledge (synthesized answer - mark as used)
+    if (tc.name === 'askKnowledge' && result.answer) {
+      sources.push({
+        id: `ask-${(result.question as string)?.substring(0, 30) || 'unknown'}`,
+        name: 'Knowledge Base (Synthesized)',
+        excerpt: (result.answer as string).substring(0, 200),
+        score: 1.0,
+        usedInResponse: true,
+      });
+    }
+  }
+
+  // Sort by score descending
+  return sources.sort((a, b) => b.score - a.score);
+}
 
 export async function researchQuery(request: AgentQuery): Promise<AgentResponse> {
   logger.info(`Research agent query: "${request.query.substring(0, 50)}..."`);
 
   return withErrorHandling(
     async () => {
-      // Step 1: Pre-fetch context from knowledge base
-      let contextText = '';
-      let sources: { name: string; content: string }[] = [];
-
-      try {
-        const searchResults = await OpenNotebookService.search({
-          query: request.query,
-          type: 'vector',
-          limit: 5,
-          minimum_score: 0.3,
-        });
-
-        if (searchResults.results.length > 0) {
-          sources = searchResults.results.map((r) => ({
-            name: r.source_name || 'Unknown Source',
-            content: r.content,
-          }));
-          contextText = sources.map((s) => `Source (${s.name}): ${s.content}`).join('\n\n');
-        }
-      } catch (error) {
-        logger.warn('Could not retrieve context from Open Notebook:', error);
-      }
-
-      // Step 2: Build conversation context
+      // Build conversation history context
       const historyContext =
-        request.history?.map((msg: ChatMessage) => `${msg.role === 'user' ? 'User' : 'Assistant'}: ${msg.text}`).join('\n') ||
-        '';
+        request.history
+          ?.map((msg: ChatMessage) => `${msg.role === 'user' ? 'User' : 'Assistant'}: ${msg.text}`)
+          .join('\n') || '';
 
-      const systemPrompt = `You are a Research Agent for a Content Manager app.
+      // Build system prompt with retrieval strategy (no pre-fetch)
+      const systemPrompt = buildRetrievalSystemPrompt(request.notebookId, historyContext);
 
-Context from Knowledge Base:
-"""
-${contextText || '(No context available)'}
-"""
-
-Conversation History:
-"""
-${historyContext || '(No history)'}
-"""
-
-Instructions:
-1. Answer the user's question thoroughly.
-2. If the Context from Knowledge Base contains relevant information, use it and cite the source.
-3. You have access to tools to search and ask the knowledge base for more information if needed.
-4. Never say "I don't have information" - always provide a helpful answer.
-5. Use Markdown formatting for readability.
-6. If the user asks to create content (article, post, media), describe what you would create.`;
-
-      // Step 3: Run agent with tools
+      // Run agent with full tool set - agent decides what to retrieve
       const modelConfig = createModelConfig(selectModel('agent'));
       const toolCalls: { name: string; result: unknown }[] = [];
 
@@ -71,7 +135,8 @@ Instructions:
         system: systemPrompt,
         prompt: request.query,
         tools: researchTools,
-        stopWhen: stepCountIs(request.maxSteps || 5),
+        // Allow more steps for multi-stage retrieval
+        stopWhen: stepCountIs(request.maxSteps || 10),
         onStepFinish: ({ toolCalls: stepToolCalls }) => {
           if (stepToolCalls) {
             for (const tc of stepToolCalls) {
@@ -83,6 +148,9 @@ Instructions:
           }
         },
       });
+
+      // Extract sources from all tool calls
+      const sources = extractSourcesFromToolCalls(toolCalls);
 
       return {
         response: result.text,

@@ -119,9 +119,18 @@ export interface AgentQuery {
   maxSteps?: number;
 }
 
+/** Reference to a knowledge source used in a response */
+export interface SourceReference {
+  id: string;
+  name: string;
+  excerpt: string;
+  score: number;
+  usedInResponse?: boolean;
+}
+
 export interface AgentResponse {
   response: string;
-  sources?: { name: string; content: string }[];
+  sources?: SourceReference[];
   toolCalls?: { name: string; result: unknown }[];
   steps?: number;
 }
