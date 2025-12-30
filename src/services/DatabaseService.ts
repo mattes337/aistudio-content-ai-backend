@@ -12,6 +12,7 @@ import type {
   KnowledgeSourceQueryOptions,
   PaginatedKnowledgeSources
 } from '../models/KnowledgeSource';
+import { deleteFile } from '../utils/fileUpload';
 import type { CreateRecipientRequest, UpdateRecipientRequest } from '../models/Recipient';
 import type { CreateNewsletterRequest, UpdateNewsletterRequest } from '../models/Newsletter';
 import type {
@@ -580,6 +581,9 @@ export class DatabaseService {
     const conditions: string[] = [];
     let paramCount = 1;
 
+    // Always exclude soft-deleted items
+    conditions.push(`ks.file_status != 'deleted'`);
+
     // Build WHERE conditions
     // Only filter by folder_path if a non-empty value is provided
     // Empty string or undefined = return all items
@@ -704,6 +708,17 @@ export class DatabaseService {
   }
 
   static async deleteKnowledgeSource(id: string): Promise<boolean> {
+    // Get the knowledge source first to retrieve the file_path
+    const source = await this.getKnowledgeSourceById(id);
+    if (!source) {
+      return false;
+    }
+
+    // Delete the file from uploads directory if it exists
+    if (source.file_path) {
+      deleteFile(source.file_path);
+    }
+
     // Soft delete: mark as deleted so sync service can clean up Open Notebook sources
     const result = await pool.query(
       `UPDATE knowledge_sources
@@ -726,6 +741,7 @@ export class DatabaseService {
     const result = await pool.query(`
       SELECT folder_path, COUNT(*) as item_count
       FROM knowledge_sources
+      WHERE file_status != 'deleted'
       GROUP BY folder_path
       ORDER BY folder_path NULLS FIRST
     `);
