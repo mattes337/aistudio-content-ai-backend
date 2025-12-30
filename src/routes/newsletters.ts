@@ -32,6 +32,42 @@ router.get('/', NewsletterController.getNewsletters);
 
 /**
  * @swagger
+ * /api/newsletters/template-variables:
+ *   get:
+ *     summary: Get available template variables for newsletter personalization
+ *     description: Returns an object describing all available data fields for email templates, including recipient columns, data JSON fields, and a sample multi-level structure.
+ *     tags: [Newsletters]
+ *     security:
+ *       - bearerAuth: []
+ *     responses:
+ *       200:
+ *         description: Template variables structure
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 description:
+ *                   type: string
+ *                 columns:
+ *                   type: object
+ *                   description: Available recipient table columns
+ *                 dataFields:
+ *                   type: object
+ *                   description: Available fields in recipient data JSON
+ *                 sample:
+ *                   type: object
+ *                   description: Sample recipient object with all fields populated
+ *                 usage:
+ *                   type: object
+ *                   description: Examples of how to use variables in templates
+ *       500:
+ *         description: Internal server error
+ */
+router.get('/template-variables', NewsletterController.getTemplateVariables);
+
+/**
+ * @swagger
  * /api/newsletters:
  *   post:
  *     summary: Create a new newsletter
