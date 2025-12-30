@@ -704,7 +704,13 @@ export class DatabaseService {
   }
 
   static async deleteKnowledgeSource(id: string): Promise<boolean> {
-    const result = await pool.query('DELETE FROM knowledge_sources WHERE id = $1', [id]);
+    // Soft delete: mark as deleted so sync service can clean up Open Notebook sources
+    const result = await pool.query(
+      `UPDATE knowledge_sources
+       SET file_status = 'deleted', updated_at = NOW()
+       WHERE id = $1`,
+      [id]
+    );
     return (result.rowCount ?? 0) > 0;
   }
 
