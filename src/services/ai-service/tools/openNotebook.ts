@@ -36,24 +36,34 @@ export const searchKnowledgeTool = tool({
   execute: async ({ query, type, limit, minimum_score }) => {
     logger.info(`Tool: searchKnowledge - query: "${query.substring(0, 50)}..."`);
     try {
-      const results = await OpenNotebookService.search({
+      const searchResults = await OpenNotebookService.search({
         query,
         type: type as 'text' | 'vector',
         limit,
         minimum_score,
       });
-      logger.info(`searchKnowledge results: ${results.total_count} total, ${results.results.length} returned`);
-      if (results.results.length > 0) {
-        logger.info(`First result: score=${results.results[0].score}, source=${results.results[0].source_name}, content=${results.results[0].content?.substring(0, 100)}...`);
+      logger.info(`searchKnowledge results: ${searchResults.total_count} total, ${searchResults.results.length} returned`);
+
+      // Check if content is missing and enrich if needed
+      const hasContent = searchResults.results.some((r) => r.content && r.content.length > 0);
+      let results = searchResults.results;
+      if (!hasContent && results.length > 0) {
+        logger.info('Search results missing content, enriching with source content...');
+        results = await OpenNotebookService.enrichSearchResultsWithContent(results, Math.min(limit, 5));
       }
+
+      if (results.length > 0) {
+        logger.info(`First result: score=${results[0].score}, source=${results[0].source_name}, contentLen=${results[0].content?.length || 0}`);
+      }
+
       return {
         success: true,
-        results: results.results.map((r) => ({
+        results: results.map((r) => ({
           content: r.content,
           source: r.source_name || 'Unknown',
           score: r.score,
         })),
-        totalCount: results.total_count,
+        totalCount: searchResults.total_count,
       };
     } catch (error) {
       logger.error('searchKnowledge tool failed:', error);
@@ -193,25 +203,33 @@ export const searchMultipleTool = tool({
     logger.info(`Tool: searchMultiple - ${queries.length} queries`);
     try {
       // Execute all searches in parallel
-      const searchPromises = queries.map((query) =>
-        OpenNotebookService.search({
+      const searchPromises = queries.map(async (query) => {
+        const searchResults = await OpenNotebookService.search({
           query,
           type: type as 'text' | 'vector',
           limit: limitPerQuery,
           minimum_score: 0.25,
-        }).then((results) => {
-          logger.info(`searchMultiple query "${query.substring(0, 30)}...": ${results.total_count} total, ${results.results.length} returned`);
-          return {
-            query,
-            results: results.results.map((r) => ({
-              content: r.content,
-              source: r.source_name || 'Unknown',
-              score: r.score,
-            })),
-            totalCount: results.total_count,
-          };
-        })
-      );
+        });
+        logger.info(`searchMultiple query "${query.substring(0, 30)}...": ${searchResults.total_count} total, ${searchResults.results.length} returned`);
+
+        // Check if content is missing and enrich if needed
+        const hasContent = searchResults.results.some((r) => r.content && r.content.length > 0);
+        let results = searchResults.results;
+        if (!hasContent && results.length > 0) {
+          logger.info(`Enriching results for query "${query.substring(0, 30)}..." with source content`);
+          results = await OpenNotebookService.enrichSearchResultsWithContent(results, Math.min(limitPerQuery, 3));
+        }
+
+        return {
+          query,
+          results: results.map((r) => ({
+            content: r.content,
+            source: r.source_name || 'Unknown',
+            score: r.score,
+          })),
+          totalCount: searchResults.total_count,
+        };
+      });
 
       const results = await Promise.all(searchPromises);
       const totalResults = results.reduce((sum, r) => sum + r.results.length, 0);

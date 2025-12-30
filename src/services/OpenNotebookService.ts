@@ -27,6 +27,25 @@ export interface SearchResponse {
   search_type: string;
 }
 
+// Raw API response structure (what Open Notebook actually returns)
+interface RawSearchResult {
+  id: string;
+  parent_id?: string;
+  content?: string;
+  title?: string;
+  source_name?: string;
+  relevance?: number;
+  score?: number;
+  type?: string;
+  metadata?: Record<string, any>;
+}
+
+interface RawSearchResponse {
+  results: RawSearchResult[];
+  total_count: number;
+  search_type: string;
+}
+
 export interface AskRequest {
   question: string;
   strategy_model?: string;
@@ -135,7 +154,7 @@ export class OpenNotebookService {
   static async search(request: SearchRequest): Promise<SearchResponse> {
     logger.info(`Searching knowledge base: "${request.query.substring(0, 50)}..."`);
 
-    const result = await this.makeRequest<SearchResponse>('/api/search', 'POST', {
+    const rawResult = await this.makeRequest<RawSearchResponse>('/api/search', 'POST', {
       query: request.query,
       type: request.type || 'text',
       limit: request.limit || 100,
@@ -144,12 +163,37 @@ export class OpenNotebookService {
       minimum_score: request.minimum_score ?? 0.2,
     });
 
-    logger.info(`Search API response: total_count=${result.total_count}, results=${result.results?.length || 0}, search_type=${result.search_type}`);
-    if (result.results && result.results.length > 0) {
-      logger.debug(`First result preview: ${JSON.stringify(result.results[0]).substring(0, 200)}...`);
+    logger.info(`Search API response: total_count=${rawResult.total_count}, results=${rawResult.results?.length || 0}, search_type=${rawResult.search_type}`);
+
+    // Log raw API response fields for debugging
+    if (rawResult.results && rawResult.results.length > 0) {
+      const firstRaw = rawResult.results[0];
+      logger.debug(`Raw API result fields: ${Object.keys(firstRaw).join(', ')}`);
+      logger.debug(`Raw result: id=${firstRaw.id}, title=${firstRaw.title}, relevance=${firstRaw.relevance}, hasContent=${!!firstRaw.content}, contentLen=${firstRaw.content?.length || 0}`);
     }
 
-    return result;
+    // Transform raw API response to normalized format
+    const transformedResults: SearchResult[] = (rawResult.results || []).map((raw) => ({
+      id: raw.id,
+      // Content: use content field, or empty string if not provided
+      content: raw.content || '',
+      // Source name: prefer source_name, fall back to title
+      source_name: raw.source_name || raw.title || 'Unknown',
+      // Score: prefer score, fall back to relevance
+      score: raw.score ?? raw.relevance ?? 0,
+      metadata: raw.metadata,
+    }));
+
+    // Log transformation result
+    if (transformedResults.length > 0) {
+      logger.debug(`Transformed result: source=${transformedResults[0].source_name}, score=${transformedResults[0].score}, contentLen=${transformedResults[0].content.length}`);
+    }
+
+    return {
+      results: transformedResults,
+      total_count: rawResult.total_count,
+      search_type: rawResult.search_type,
+    };
   }
 
   /**
@@ -207,6 +251,55 @@ export class OpenNotebookService {
     contextConfig?: Record<string, any>
   ): Promise<{ context: Record<string, any>; token_count: number; char_count: number }> {
     return this.makeRequest(`/api/notebooks/${notebookId}/context`, 'POST', contextConfig || {});
+  }
+
+  /**
+   * Get a single source by ID (includes full content)
+   */
+  static async getSource(sourceId: string): Promise<{ id: string; title: string; content?: string; type?: string }> {
+    return this.makeRequest(`/api/sources/${sourceId}`);
+  }
+
+  /**
+   * Fetch content for search results that are missing content.
+   * Only fetches for top N results to avoid excessive API calls.
+   */
+  static async enrichSearchResultsWithContent(
+    results: SearchResult[],
+    maxToEnrich: number = 5
+  ): Promise<SearchResult[]> {
+    const resultsToEnrich = results.slice(0, maxToEnrich).filter((r) => !r.content || r.content.length === 0);
+
+    if (resultsToEnrich.length === 0) {
+      return results;
+    }
+
+    logger.info(`Enriching ${resultsToEnrich.length} search results with content`);
+
+    // Fetch content for results missing it
+    const enrichmentPromises = resultsToEnrich.map(async (result) => {
+      try {
+        // Extract source ID from result ID (format: "source:xyz" or just "xyz")
+        const sourceId = result.id.startsWith('source:') ? result.id : `source:${result.id}`;
+        const source = await this.getSource(sourceId);
+        return { id: result.id, content: source.content || '' };
+      } catch (error) {
+        logger.warn(`Failed to fetch content for source ${result.id}:`, error);
+        return { id: result.id, content: '' };
+      }
+    });
+
+    const enrichments = await Promise.all(enrichmentPromises);
+    const enrichmentMap = new Map(enrichments.map((e) => [e.id, e.content]));
+
+    // Apply enrichments to results
+    return results.map((result) => {
+      const enrichedContent = enrichmentMap.get(result.id);
+      if (enrichedContent !== undefined && (!result.content || result.content.length === 0)) {
+        return { ...result, content: enrichedContent };
+      }
+      return result;
+    });
   }
 
   /**
