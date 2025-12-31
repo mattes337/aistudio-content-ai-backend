@@ -337,7 +337,12 @@ export async function* researchQueryStream(
     }
   };
 
-  yield { type: 'status', status: 'Starting research...' };
+  // Generate a short topic summary from the query (first 60 chars, break at word boundary)
+  const queryPreview = request.query.length > 60
+    ? request.query.substring(0, 60).replace(/\s+\S*$/, '') + '...'
+    : request.query;
+
+  yield { type: 'status', status: `Researching: "${queryPreview}"` };
 
   try {
     // Build conversation history context
@@ -351,8 +356,54 @@ export async function* researchQueryStream(
 
     const modelConfig = createModelConfig(selectModel('agent'));
     const toolCalls: { name: string; args: unknown; result: unknown }[] = [];
+    let totalSourcesFound = 0;
+    let hasEmittedSynthesizing = false;
 
-    yield { type: 'status', status: 'Searching knowledge base...' };
+    yield { type: 'status', status: 'Analyzing query and planning research strategy...' };
+
+    // Helper to generate descriptive status for each tool type
+    const getToolStatusMessage = (toolName: string, args: Record<string, unknown>): string => {
+      switch (toolName) {
+        case 'searchKnowledge': {
+          const query = (args.query as string) || '';
+          const preview = query.length > 40 ? query.substring(0, 40).replace(/\s+\S*$/, '') + '...' : query;
+          return `Searching knowledge base for "${preview}"`;
+        }
+        case 'searchMultiple': {
+          const queries = (args.queries as string[]) || [];
+          if (queries.length === 1) {
+            const preview = queries[0].length > 40 ? queries[0].substring(0, 40) + '...' : queries[0];
+            return `Searching knowledge base for "${preview}"`;
+          }
+          return `Searching knowledge base for ${queries.length} topics`;
+        }
+        case 'askKnowledge': {
+          const question = (args.question as string) || '';
+          const preview = question.length > 40 ? question.substring(0, 40).replace(/\s+\S*$/, '') + '...' : question;
+          return `Asking knowledge base: "${preview}"`;
+        }
+        case 'chatWithNotebook':
+          return 'Consulting notebook context...';
+        case 'buildContext':
+          return 'Gathering full notebook context...';
+        default:
+          return `Executing ${toolName}...`;
+      }
+    };
+
+    // Helper to extract source count from tool result
+    const getSourceCount = (toolName: string, result: unknown): number => {
+      if (!result || typeof result !== 'object') return 0;
+      const r = result as Record<string, unknown>;
+      if (toolName === 'searchKnowledge') {
+        return (r.results as unknown[])?.length || 0;
+      }
+      if (toolName === 'searchMultiple') {
+        const searches = r.searches as Array<{ results: unknown[] }> | undefined;
+        return searches?.reduce((sum, s) => sum + (s.results?.length || 0), 0) || 0;
+      }
+      return 0;
+    };
 
     // Run generateText in background with callbacks
     const generatePromise = generateText({
@@ -368,6 +419,8 @@ export async function* researchQueryStream(
         logger.info(`Step finished: type=${stepType}, tools=${stepToolCalls?.length || 0}, textLen=${text?.length || 0}`);
 
         if (stepToolCalls && stepToolCalls.length > 0) {
+          let stepSourceCount = 0;
+
           for (const tc of stepToolCalls) {
             const tcResult = (tc as any).result;
             toolCalls.push({
@@ -376,13 +429,22 @@ export async function* researchQueryStream(
               result: tcResult,
             });
 
+            // Count sources from this tool call
+            const sourceCount = getSourceCount(tc.toolName, tcResult);
+            stepSourceCount += sourceCount;
+            totalSourcesFound += sourceCount;
+
+            // Always emit descriptive status message for tool start
+            const statusMessage = getToolStatusMessage(tc.toolName, tc.args as Record<string, unknown>);
+            pushEvent({
+              type: 'tool_start',
+              tool: tc.toolName,
+              status: statusMessage,
+              ...(request.verbose && { toolInput: tc.args as Record<string, unknown> }),
+            });
+
+            // Emit tool_result only in verbose mode
             if (request.verbose) {
-              pushEvent({
-                type: 'tool_start',
-                tool: tc.toolName,
-                toolInput: tc.args as Record<string, unknown>,
-                status: `Called ${tc.toolName}`,
-              });
               pushEvent({
                 type: 'tool_result',
                 tool: tc.toolName,
@@ -391,10 +453,28 @@ export async function* researchQueryStream(
               });
             }
           }
+
+          // Emit status about sources found from this step
+          if (stepSourceCount > 0) {
+            pushEvent({
+              type: 'status',
+              status: `Found ${stepSourceCount} relevant source${stepSourceCount === 1 ? '' : 's'}`,
+            });
+          }
         }
 
-        // If this step produced text, emit it
+        // If this step produced text (synthesis happening), emit status then content
         if (text && text.length > 0) {
+          if (!hasEmittedSynthesizing && totalSourcesFound > 0) {
+            pushEvent({
+              type: 'status',
+              status: `Synthesizing answer from ${totalSourcesFound} source${totalSourcesFound === 1 ? '' : 's'}...`,
+            });
+            hasEmittedSynthesizing = true;
+          } else if (!hasEmittedSynthesizing) {
+            pushEvent({ type: 'status', status: 'Generating response...' });
+            hasEmittedSynthesizing = true;
+          }
           pushEvent({ type: 'delta', content: text });
         }
       },
