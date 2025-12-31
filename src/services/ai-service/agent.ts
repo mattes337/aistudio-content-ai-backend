@@ -35,18 +35,8 @@ function buildRetrievalSystemPrompt(
 - **webSearchMultiple**: Search multiple web queries in parallel (max 5)`
     : '';
 
-  const webCitationSection = options.searchWeb
-    ? `
-
-## WEB CITATIONS
-For web search results, cite sources using standard markdown links:
-- Format: [Source Title](URL)
-- Example: According to [TechCrunch](https://techcrunch.com/article), the new feature...`
-    : '';
-
   const webGuideline = options.searchWeb
     ? `
-- **For web results**, cite using markdown links [Title](URL)
 - **ALWAYS search knowledge base first**, then supplement with web search`
     : '';
 
@@ -105,11 +95,21 @@ ${historyContext || '(No prior conversation)'}
 
 ## CITATION FORMAT (CRITICAL)
 When citing sources, use this EXACT inline reference format:
+\`[[ref:id={SOURCE_ID}|name={SOURCE_NAME}]]\`
+
+With optional URL (for web sources):
+\`[[ref:id={SOURCE_ID}|name={SOURCE_NAME}|url={URL}]]\`
+
+With optional location:
 \`[[ref:id={SOURCE_ID}|name={SOURCE_NAME}|loc={LOCATION_TYPE}:{LOCATION_VALUE}]]\`
 
+With both URL and location:
+\`[[ref:id={SOURCE_ID}|name={SOURCE_NAME}|url={URL}|loc={LOCATION_TYPE}:{LOCATION_VALUE}]]\`
+
 Components:
-- **id**: The source ID from search results (e.g., "source:abc123")
+- **id**: The source ID from search results (e.g., "source:abc123" for KB, or use the URL as ID for web)
 - **name**: Human-readable source name
+- **url**: The full URL (REQUIRED for web search results, optional for KB sources)
 - **loc**: Optional location within source (type:value format)
 
 Location types:
@@ -120,16 +120,20 @@ Location types:
 - \`timecode:{MM:SS}\` or \`timecode:{HH:MM:SS}\` - For audio/video
 - \`index:{number}\` - For indexed content
 
-Examples:
+Examples (Knowledge Base):
 - \`[[ref:id=source:abc123|name=Marketing Guide|loc=chapter:3]]\`
 - \`[[ref:id=source:xyz789|name=Podcast Episode 42|loc=timecode:15:30]]\`
-- \`[[ref:id=source:def456|name=API Documentation|loc=section:Authentication]]\`
-- \`[[ref:id=source:ghi789|name=User Manual]]\` (no location)
+- \`[[ref:id=source:ghi789|name=User Manual]]\`
+
+Examples (Web Sources - MUST include url):
+- \`[[ref:id=web:1|name=Wikipedia Article|url=https://en.wikipedia.org/wiki/Example]]\`
+- \`[[ref:id=web:2|name=Research Paper|url=https://example.com/paper.pdf|loc=page:5]]\`
 
 IMPORTANT:
 - Always include the source ID and name
+- **For web sources, ALWAYS include the url component**
 - Include location when the search result provides specific position info
-- Place references inline where you use the information, not at the end${webCitationSection}${webPriorityNote}`;
+- Place references inline where you use the information, not at the end${webPriorityNote}`;
 }
 
 /** Search result interface with source ID and metadata */

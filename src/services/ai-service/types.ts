@@ -156,11 +156,15 @@ export interface SourceReference {
  * Inline Reference Format Specification
  *
  * References are embedded in AI response text using this format:
+ * [[ref:id={SOURCE_ID}|name={SOURCE_NAME}]]
  * [[ref:id={SOURCE_ID}|name={SOURCE_NAME}|loc={LOCATION_TYPE}:{LOCATION_VALUE}]]
+ * [[ref:id={SOURCE_ID}|name={SOURCE_NAME}|url={URL}]]
+ * [[ref:id={SOURCE_ID}|name={SOURCE_NAME}|url={URL}|loc={LOCATION_TYPE}:{LOCATION_VALUE}]]
  *
  * Components:
- * - id: The unique identifier of the knowledge base source
- * - name: Human-readable name of the source
+ * - id: The unique identifier of the source (required)
+ * - name: Human-readable name of the source (required)
+ * - url: Optional URL for web sources (allows opening the source)
  * - loc: Optional location within the source (type:value format)
  *
  * Location types:
@@ -177,39 +181,49 @@ export interface SourceReference {
  * - [[ref:id=source:xyz|name=Podcast Ep 42|loc=timecode:15:30]]
  * - [[ref:id=source:def|name=API Docs|loc=section:Authentication]]
  * - [[ref:id=source:ghi|name=User Manual]] (no location)
+ * - [[ref:id=web:123|name=Wikipedia Article|url=https://en.wikipedia.org/wiki/Example]]
+ * - [[ref:id=web:456|name=Research Paper|url=https://example.com/paper.pdf|loc=page:5]]
  *
- * Regex for parsing: /\[\[ref:id=([^|]+)\|name=([^|\]]+)(?:\|loc=([^:]+):([^\]]+))?\]\]/g
+ * Regex for parsing: /\[\[ref:id=([^|]+)\|name=([^|\]]+)(?:\|url=([^|\]]+))?(?:\|loc=([^:]+):([^\]]+))?\]\]/g
  */
 export const REFERENCE_FORMAT = {
   /** Regex pattern to match inline references */
-  pattern: /\[\[ref:id=([^|]+)\|name=([^|\]]+)(?:\|loc=([^:]+):([^\]]+))?\]\]/g,
+  pattern: /\[\[ref:id=([^|]+)\|name=([^|\]]+)(?:\|url=([^|\]]+))?(?:\|loc=([^:]+):([^\]]+))?\]\]/g,
 
   /** Build an inline reference string */
-  build: (id: string, name: string, location?: SourceLocation): string => {
+  build: (id: string, name: string, options?: { url?: string; location?: SourceLocation }): string => {
     const escapedName = name.replace(/[|\]]/g, ' ');
     let ref = `[[ref:id=${id}|name=${escapedName}`;
-    if (location) {
-      const escapedValue = String(location.value).replace(/[\]]/g, '');
-      ref += `|loc=${location.type}:${escapedValue}`;
+    if (options?.url) {
+      const escapedUrl = options.url.replace(/[|\]]/g, '');
+      ref += `|url=${escapedUrl}`;
+    }
+    if (options?.location) {
+      const escapedValue = String(options.location.value).replace(/[\]]/g, '');
+      ref += `|loc=${options.location.type}:${escapedValue}`;
     }
     ref += ']]';
     return ref;
   },
 
   /** Parse an inline reference string */
-  parse: (ref: string): { id: string; name: string; location?: SourceLocation } | null => {
-    const match = /\[\[ref:id=([^|]+)\|name=([^|\]]+)(?:\|loc=([^:]+):([^\]]+))?\]\]/.exec(ref);
+  parse: (ref: string): { id: string; name: string; url?: string; location?: SourceLocation } | null => {
+    const match = /\[\[ref:id=([^|]+)\|name=([^|\]]+)(?:\|url=([^|\]]+))?(?:\|loc=([^:]+):([^\]]+))?\]\]/.exec(ref);
     if (!match || !match[1] || !match[2]) return null;
 
-    const result: { id: string; name: string; location?: SourceLocation } = {
+    const result: { id: string; name: string; url?: string; location?: SourceLocation } = {
       id: match[1],
       name: match[2],
     };
 
-    if (match[3] && match[4]) {
+    if (match[3]) {
+      result.url = match[3];
+    }
+
+    if (match[4] && match[5]) {
       result.location = {
-        type: match[3] as SourceLocation['type'],
-        value: match[4],
+        type: match[4] as SourceLocation['type'],
+        value: match[5],
       };
     }
 
