@@ -7,14 +7,31 @@ import logger from '../utils/logger';
 
 const config = loadEnvConfig();
 
+// Cache for channel ID -> notebook ID mappings
+const channelNotebookCache = new Map<string, { notebookId: string | undefined; timestamp: number }>();
+const CHANNEL_NOTEBOOK_CACHE_TTL = 2 * 60 * 1000; // 2 minutes
+
+// Cache for catchall notebook ID
+let catchallNotebookCache: { notebookId: string | undefined; timestamp: number } | null = null;
+
 /**
  * Helper to resolve notebook ID based on channelId
  * - If channelId is provided, tries to find a notebook matching the channel name
  * - Falls back to catchall notebook
+ * - Results are cached for performance
  */
 async function resolveNotebookId(channelId?: string): Promise<string | undefined> {
+  const now = Date.now();
+
   // If channelId is provided, try to find a channel-specific notebook
   if (channelId) {
+    // Check cache first
+    const cached = channelNotebookCache.get(channelId);
+    if (cached && (now - cached.timestamp) < CHANNEL_NOTEBOOK_CACHE_TTL) {
+      logger.debug(`Using cached notebook for channel ${channelId}: ${cached.notebookId}`);
+      return cached.notebookId ?? await getCatchallNotebookId(now);
+    }
+
     try {
       const channel = await DatabaseService.getChannelById(channelId);
       if (channel) {
@@ -22,9 +39,13 @@ async function resolveNotebookId(channelId?: string): Promise<string | undefined
         const channelNotebook = await OpenNotebookService.findNotebookByName(channel.name);
         if (channelNotebook) {
           logger.info(`Found channel notebook: id=${channelNotebook.id}, name="${channelNotebook.name}"`);
+          // Cache the result
+          channelNotebookCache.set(channelId, { notebookId: channelNotebook.id, timestamp: now });
           return channelNotebook.id;
         }
         logger.info(`No notebook found matching channel name "${channel.name}", falling back to catchall`);
+        // Cache that this channel has no specific notebook (will use catchall)
+        channelNotebookCache.set(channelId, { notebookId: undefined, timestamp: now });
       }
     } catch (err) {
       logger.warn('Failed to look up channel notebook:', err);
@@ -32,15 +53,30 @@ async function resolveNotebookId(channelId?: string): Promise<string | undefined
   }
 
   // Fall back to catchall notebook
+  return getCatchallNotebookId(now);
+}
+
+/**
+ * Get catchall notebook ID with caching
+ */
+async function getCatchallNotebookId(now: number): Promise<string | undefined> {
+  // Check cache
+  if (catchallNotebookCache && (now - catchallNotebookCache.timestamp) < CHANNEL_NOTEBOOK_CACHE_TTL) {
+    logger.debug(`Using cached catchall notebook: ${catchallNotebookCache.notebookId}`);
+    return catchallNotebookCache.notebookId;
+  }
+
   try {
     const catchallNotebook = await OpenNotebookService.findNotebookByName(
       config.openNotebookCatchallName
     );
     if (catchallNotebook) {
       logger.info(`Using catchall notebook: id=${catchallNotebook.id}, name="${catchallNotebook.name}"`);
+      catchallNotebookCache = { notebookId: catchallNotebook.id, timestamp: now };
       return catchallNotebook.id;
     }
     logger.warn(`Catchall notebook "${config.openNotebookCatchallName}" not found`);
+    catchallNotebookCache = { notebookId: undefined, timestamp: now };
   } catch (err) {
     logger.warn('Failed to look up catchall notebook:', err);
   }

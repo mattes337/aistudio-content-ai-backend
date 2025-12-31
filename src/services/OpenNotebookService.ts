@@ -105,6 +105,14 @@ export class OpenNotebookService {
   private static modelsCacheTime: number = 0;
   private static readonly MODELS_CACHE_TTL = 5 * 60 * 1000; // 5 minutes
 
+  /** Cached notebooks list */
+  private static notebooksCache: Notebook[] | null = null;
+  private static notebooksCacheTime: number = 0;
+  private static readonly NOTEBOOKS_CACHE_TTL = 2 * 60 * 1000; // 2 minutes
+
+  /** Cached notebook by name (lowercase) -> notebook */
+  private static notebookByNameCache: Map<string, Notebook> = new Map();
+
   /**
    * Make a request to the Open Notebook API
    */
@@ -143,18 +151,65 @@ export class OpenNotebookService {
   }
 
   /**
-   * Get all notebooks
+   * Get all notebooks (with caching)
    */
   static async getNotebooks(): Promise<Notebook[]> {
-    return this.makeRequest<Notebook[]>('/api/notebooks');
+    const now = Date.now();
+    if (this.notebooksCache && (now - this.notebooksCacheTime) < this.NOTEBOOKS_CACHE_TTL) {
+      logger.debug(`Using cached notebooks (${this.notebooksCache.length} notebooks)`);
+      return this.notebooksCache;
+    }
+
+    logger.info('Fetching notebooks from Open Notebook API...');
+    try {
+      const notebooks = await this.makeRequest<Notebook[]>('/api/notebooks');
+      this.notebooksCache = notebooks;
+      this.notebooksCacheTime = now;
+
+      // Rebuild the name lookup cache
+      this.notebookByNameCache.clear();
+      for (const notebook of notebooks) {
+        this.notebookByNameCache.set(notebook.name.toLowerCase(), notebook);
+      }
+
+      logger.info(`Fetched ${notebooks.length} notebooks: ${notebooks.map(n => n.name).join(', ')}`);
+      return notebooks;
+    } catch (error) {
+      logger.error('Failed to fetch notebooks from Open Notebook:', error);
+      return this.notebooksCache || [];
+    }
   }
 
   /**
-   * Find a notebook by name (case-insensitive)
+   * Find a notebook by name (case-insensitive, with caching)
    */
   static async findNotebookByName(name: string): Promise<Notebook | null> {
+    const nameLower = name.toLowerCase();
+
+    // Check name cache first (if notebooks are cached)
+    if (this.notebooksCache && (Date.now() - this.notebooksCacheTime) < this.NOTEBOOKS_CACHE_TTL) {
+      const cached = this.notebookByNameCache.get(nameLower);
+      if (cached) {
+        logger.debug(`Notebook "${name}" found in cache: id=${cached.id}`);
+        return cached;
+      }
+      // Name not in cache and cache is valid - notebook doesn't exist
+      logger.debug(`Notebook "${name}" not found in cache`);
+      return null;
+    }
+
+    // Fetch fresh notebooks (will rebuild cache)
     const notebooks = await this.getNotebooks();
-    return notebooks.find(n => n.name.toLowerCase() === name.toLowerCase()) || null;
+    return notebooks.find(n => n.name.toLowerCase() === nameLower) || null;
+  }
+
+  /**
+   * Invalidate notebook caches (call after creating/deleting notebooks)
+   */
+  static invalidateNotebookCache(): void {
+    this.notebooksCache = null;
+    this.notebookByNameCache.clear();
+    logger.debug('Notebook cache invalidated');
   }
 
   /**
