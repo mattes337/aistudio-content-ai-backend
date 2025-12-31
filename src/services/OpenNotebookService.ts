@@ -96,6 +96,11 @@ export interface ExecuteChatResponse {
 export class OpenNotebookService {
   private static baseUrl = config.openNotebookUrl;
 
+  /** Cached models list */
+  private static modelsCache: { id: string; name: string; provider?: string }[] | null = null;
+  private static modelsCacheTime: number = 0;
+  private static readonly MODELS_CACHE_TTL = 5 * 60 * 1000; // 5 minutes
+
   /**
    * Make a request to the Open Notebook API
    */
@@ -197,13 +202,90 @@ export class OpenNotebookService {
   }
 
   /**
-   * Format model ID for Open Notebook API (requires "model:" prefix)
+   * Get cached models or fetch fresh ones
    */
-  private static formatModelId(modelId: string): string {
-    if (modelId.startsWith('model:')) {
-      return modelId;
+  private static async getCachedModels(): Promise<{ id: string; name: string; provider?: string }[]> {
+    const now = Date.now();
+    if (this.modelsCache && (now - this.modelsCacheTime) < this.MODELS_CACHE_TTL) {
+      return this.modelsCache;
     }
-    return `model:${modelId}`;
+
+    try {
+      const models = await this.makeRequest<{ id: string; name: string; provider?: string }[]>('/api/models');
+      this.modelsCache = models;
+      this.modelsCacheTime = now;
+      logger.debug(`Fetched ${models.length} models from Open Notebook`);
+      return models;
+    } catch (error) {
+      logger.warn('Failed to fetch models from Open Notebook:', error);
+      return this.modelsCache || [];
+    }
+  }
+
+  /**
+   * Look up model ID by name. Searches for exact match first, then partial match.
+   * @param modelName The model name to search for (e.g., "gemini-3-flash-preview")
+   * @returns The full model ID (e.g., "model:abc123") or null if not found
+   */
+  private static async resolveModelId(modelName: string): Promise<string | null> {
+    // If already a full model ID, return as-is
+    if (modelName.startsWith('model:')) {
+      return modelName;
+    }
+
+    const models = await this.getCachedModels();
+    if (models.length === 0) {
+      logger.warn('No models available from Open Notebook API');
+      return null;
+    }
+
+    const lowerName = modelName.toLowerCase();
+
+    // Try exact match on name first
+    let match = models.find(m => m.name.toLowerCase() === lowerName);
+    if (match) {
+      logger.debug(`Model "${modelName}" resolved to "${match.id}" (exact match)`);
+      return match.id;
+    }
+
+    // Try partial match (model name contains the search term)
+    match = models.find(m => m.name.toLowerCase().includes(lowerName));
+    if (match) {
+      logger.debug(`Model "${modelName}" resolved to "${match.id}" (partial match: ${match.name})`);
+      return match.id;
+    }
+
+    // Try reverse partial match (search term contains model name)
+    match = models.find(m => lowerName.includes(m.name.toLowerCase()));
+    if (match) {
+      logger.debug(`Model "${modelName}" resolved to "${match.id}" (reverse match: ${match.name})`);
+      return match.id;
+    }
+
+    logger.warn(`Model "${modelName}" not found. Available: ${models.map(m => m.name).join(', ')}`);
+    return null;
+  }
+
+  /**
+   * Resolve model ID with fallback to first available model
+   */
+  private static async resolveModelIdWithFallback(modelName: string): Promise<string> {
+    const resolved = await this.resolveModelId(modelName);
+    if (resolved) {
+      return resolved;
+    }
+
+    // Fallback to first available model
+    const models = await this.getCachedModels();
+    const firstModel = models[0];
+    if (firstModel) {
+      logger.warn(`Using fallback model: ${firstModel.name} (${firstModel.id})`);
+      return firstModel.id;
+    }
+
+    // Last resort: return the original with model: prefix
+    logger.error('No models available, using original model name');
+    return `model:${modelName}`;
   }
 
   /**
@@ -212,29 +294,22 @@ export class OpenNotebookService {
   static async ask(request: AskRequest): Promise<AskResponse> {
     logger.info(`Asking knowledge base: "${request.question.substring(0, 50)}..."`);
 
-    // Open Notebook API requires model parameters with "model:" prefix
+    // Resolve model names to actual model IDs from the API
     const defaultModel = config.openNotebookDefaultModel;
-    const strategyModel = this.formatModelId(request.strategy_model || defaultModel);
-    const answerModel = this.formatModelId(request.answer_model || defaultModel);
-    const finalAnswerModel = this.formatModelId(request.final_answer_model || defaultModel);
+    const [strategyModel, answerModel, finalAnswerModel] = await Promise.all([
+      this.resolveModelIdWithFallback(request.strategy_model || defaultModel),
+      this.resolveModelIdWithFallback(request.answer_model || defaultModel),
+      this.resolveModelIdWithFallback(request.final_answer_model || defaultModel),
+    ]);
 
     logger.debug(`Ask models: strategy=${strategyModel}, answer=${answerModel}, final=${finalAnswerModel}`);
 
-    try {
-      return await this.makeRequest<AskResponse>('/api/search/ask/simple', 'POST', {
-        question: request.question,
-        strategy_model: strategyModel,
-        answer_model: answerModel,
-        final_answer_model: finalAnswerModel,
-      });
-    } catch (error) {
-      // Log available models to help debug model ID issues
-      if (error instanceof Error && error.message.includes('not found')) {
-        const models = await this.getModels();
-        logger.error(`Model not found. Available models: ${JSON.stringify(models.map(m => m.id))}`);
-      }
-      throw error;
-    }
+    return await this.makeRequest<AskResponse>('/api/search/ask/simple', 'POST', {
+      question: request.question,
+      strategy_model: strategyModel,
+      answer_model: answerModel,
+      final_answer_model: finalAnswerModel,
+    });
   }
 
   /**
