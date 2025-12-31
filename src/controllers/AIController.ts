@@ -399,7 +399,7 @@ export class AIController {
 
   static async researchQueryStream(req: Request, res: Response) {
     try {
-      const { query, channelId, history, verbose, strategyModel, answerModel, finalAnswerModel } = req.body;
+      const { query, channelId, history, verbose, searchWeb, strategyModel, answerModel, finalAnswerModel } = req.body;
       if (!query) {
         return res.status(400).json({ message: 'Query is required' });
       }
@@ -428,6 +428,7 @@ export class AIController {
         history,
         notebookId,
         verbose: verbose === true,
+        searchWeb: searchWeb === true,
         modelConfig,
       })) {
         res.write(`data: ${JSON.stringify(chunk)}\n\n`);

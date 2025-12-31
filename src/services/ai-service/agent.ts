@@ -1,6 +1,6 @@
 import { generateText, stepCountIs } from 'ai';
 import { createModelConfig, selectModel } from './models';
-import { researchTools, setRequestModelConfig, clearRequestModelConfig, setRequestNotebookId, clearRequestNotebookId } from './tools';
+import { researchTools, getResearchTools, searchKnowledgeTool, setRequestModelConfig, clearRequestModelConfig, setRequestNotebookId, clearRequestNotebookId } from './tools';
 import type {
   AgentQuery,
   AgentResponse,
@@ -19,27 +19,70 @@ import logger from '../../utils/logger';
  */
 function buildRetrievalSystemPrompt(
   notebookId: string | undefined,
-  historyContext: string
+  historyContext: string,
+  options: { searchWeb?: boolean } = {}
 ): string {
-  return `You are a Research Agent with access to a knowledge base through multiple tools.
+  const webSearchSection = options.searchWeb
+    ? `
+8. **AFTER** searching the knowledge base, use webSearch to supplement with current web information
+9. **FOR** comparing web topics, use webSearchMultiple to search several web queries in parallel
+10. **COMBINE** knowledge base results with web results for comprehensive answers`
+    : '';
 
+  const webToolsSection = options.searchWeb
+    ? `
+- **webSearch**: Search the web for current information, news, and recent events (use AFTER knowledge base)
+- **webSearchMultiple**: Search multiple web queries in parallel (max 5)`
+    : '';
+
+  const webCitationSection = options.searchWeb
+    ? `
+
+## WEB CITATIONS
+For web search results, cite sources using standard markdown links:
+- Format: [Source Title](URL)
+- Example: According to [TechCrunch](https://techcrunch.com/article), the new feature...`
+    : '';
+
+  const webGuideline = options.searchWeb
+    ? `
+- **For web results**, cite using markdown links [Title](URL)
+- **ALWAYS search knowledge base first**, then supplement with web search`
+    : '';
+
+  const webPriorityNote = options.searchWeb
+    ? `
+
+## IMPORTANT: SOURCE PRIORITY
+1. **ALWAYS search the knowledge base FIRST** using searchKnowledge or askKnowledge
+2. **THEN** use webSearch to supplement with current/external information
+3. **Knowledge base sources have higher authority** than web sources
+4. **Combine both sources** in your response for comprehensive answers
+5. **Never skip the knowledge base** - even if the question seems web-focused`
+    : '';
+
+  return `You are a Research Agent with access to a knowledge base through multiple tools.${options.searchWeb ? ' You also have access to web search, but you MUST ALWAYS search the knowledge base FIRST before using web search.' : ''}
+${options.searchWeb ? `
+## CRITICAL RULE
+**YOU MUST ALWAYS CALL searchKnowledge OR askKnowledge BEFORE calling webSearch.** This is mandatory - never skip the knowledge base. The knowledge base is your primary source of truth.
+` : ''}
 ## RETRIEVAL STRATEGY
-You decide when and how to retrieve information. Follow this strategy:
+You decide when and how to retrieve information. Follow this strategy IN ORDER:
 
-1. **START** with searchKnowledge(type: "vector") for semantic matches on the user's question
+1. **ALWAYS START** with searchKnowledge(type: "vector") for semantic matches on the user's question
 2. **IF** results are sparse or low-scoring, try searchKnowledge(type: "text") for keyword matches
 3. **FOR** complex questions requiring reasoning, use askKnowledge to get a synthesized answer
 4. **FOR** comparing multiple topics, use searchMultiple to search several queries in parallel
 5. **FOR** follow-up depth on a topic, use chatWithNotebook for multi-turn exploration
 6. **FOR** comprehensive overview, use buildContext to get full notebook context
-7. **ONLY** respond when you have sufficient context - it's better to search more than guess
+7. **ONLY** respond when you have sufficient context - it's better to search more than guess${webSearchSection}
 
 ## AVAILABLE TOOLS
 - **searchKnowledge**: Find specific content (vector=semantic, text=keyword)
 - **askKnowledge**: Get AI-synthesized answer from multiple sources
 - **searchMultiple**: Search multiple queries in parallel (max 5)
 - **chatWithNotebook**: Multi-turn conversation for depth (requires notebookId)
-- **buildContext**: Get full notebook context (requires notebookId)
+- **buildContext**: Get full notebook context (requires notebookId)${webToolsSection}
 
 ${notebookId ? `## NOTEBOOK ID\nFor tools that require it: "${notebookId}"` : '## NOTE\nNo notebook ID provided - chatWithNotebook and buildContext are unavailable.'}
 
@@ -54,7 +97,7 @@ ${historyContext || '(No prior conversation)'}
 - **If knowledge base lacks info**, say you don't have information on that topic (don't explain search failures)
 - **Prefer depth over breadth** - thorough answers over superficial coverage
 - **Use Markdown** for readability
-- **Never fabricate** information not found in sources
+- **Never fabricate** information not found in sources${webGuideline}
 
 ## CITATION FORMAT (CRITICAL)
 When citing sources, use this EXACT inline reference format:
@@ -82,7 +125,7 @@ Examples:
 IMPORTANT:
 - Always include the source ID and name
 - Include location when the search result provides specific position info
-- Place references inline where you use the information, not at the end`;
+- Place references inline where you use the information, not at the end${webCitationSection}${webPriorityNote}`;
 }
 
 /** Search result interface with source ID and metadata */
@@ -316,7 +359,7 @@ export async function researchQuery(request: AgentQuery): Promise<AgentResponse>
 export async function* researchQueryStream(
   request: ResearchStreamOptions
 ): AsyncGenerator<ResearchStreamChunk> {
-  logger.info(`Research agent stream: "${request.query.substring(0, 50)}..." verbose=${request.verbose}`);
+  logger.info(`Research agent stream: "${request.query.substring(0, 50)}..." verbose=${request.verbose} searchWeb=${request.searchWeb}`);
 
   // Set model config and notebook ID for tools to use
   setRequestModelConfig(request.modelConfig);
@@ -351,8 +394,13 @@ export async function* researchQueryStream(
         ?.map((msg: ChatMessage) => `${msg.role === 'user' ? 'User' : 'Assistant'}: ${msg.text}`)
         .join('\n') || '';
 
-    // Build system prompt with retrieval strategy
-    const systemPrompt = buildRetrievalSystemPrompt(request.notebookId, historyContext);
+    // Build system prompt with retrieval strategy (include web search if enabled)
+    const systemPrompt = buildRetrievalSystemPrompt(request.notebookId, historyContext, {
+      searchWeb: request.searchWeb,
+    });
+
+    // Get appropriate tools based on options
+    const tools = getResearchTools({ searchWeb: request.searchWeb });
 
     const modelConfig = createModelConfig(selectModel('agent'));
     const toolCalls: { name: string; args: unknown; result: unknown }[] = [];
@@ -360,6 +408,53 @@ export async function* researchQueryStream(
     let hasEmittedSynthesizing = false;
 
     yield { type: 'status', status: 'Analyzing query and planning research strategy...' };
+
+    // When searchWeb is enabled, ALWAYS search knowledge base first
+    let knowledgeBaseContext = '';
+    if (request.searchWeb) {
+      yield { type: 'status', status: 'Searching knowledge base first...' };
+
+      const kbToolInput = { query: request.query, type: 'vector' as const, limit: 10, minimum_score: 0 };
+      yield {
+        type: 'tool_start',
+        tool: 'searchKnowledge',
+        status: `Searching knowledge base for "${queryPreview}"`,
+        ...(request.verbose && { toolInput: kbToolInput }),
+      };
+
+      try {
+        const kbResult = await searchKnowledgeTool.execute(kbToolInput, { abortSignal: undefined as any, toolCallId: 'initial-kb-search', messages: [] });
+
+        toolCalls.push({
+          name: 'searchKnowledge',
+          args: kbToolInput,
+          result: kbResult,
+        });
+
+        if (request.verbose) {
+          yield {
+            type: 'tool_result',
+            tool: 'searchKnowledge',
+            toolInput: kbToolInput,
+            toolResult: kbResult,
+          };
+        }
+
+        // Count sources from knowledge base
+        if (kbResult && typeof kbResult === 'object' && 'results' in kbResult) {
+          const results = (kbResult as { results: unknown[] }).results;
+          totalSourcesFound += results.length;
+          if (results.length > 0) {
+            yield { type: 'status', status: `Found ${results.length} source(s) from knowledge base` };
+            // Build context from KB results for the agent
+            knowledgeBaseContext = `\n\n## KNOWLEDGE BASE RESULTS (use these as primary sources)\nThe following ${results.length} results were found in the knowledge base. Use these as your PRIMARY sources and cite them appropriately:\n\n${JSON.stringify(results, null, 2)}`;
+          }
+        }
+      } catch (error) {
+        logger.error('Initial knowledge base search failed:', error);
+        yield { type: 'status', status: 'Knowledge base search encountered an issue, continuing...' };
+      }
+    }
 
     // Helper to generate descriptive status for each tool type
     const getToolStatusMessage = (toolName: string, args: Record<string, unknown> | undefined): string => {
@@ -388,6 +483,21 @@ export async function* researchQueryStream(
           return 'Consulting notebook context...';
         case 'buildContext':
           return 'Gathering full notebook context...';
+        case 'webSearch': {
+          const query = (args?.query as string) || '';
+          const preview = query.length > 40 ? query.substring(0, 40).replace(/\s+\S*$/, '') + '...' : query;
+          return preview ? `Searching the web for "${preview}"` : 'Searching the web...';
+        }
+        case 'webSearchMultiple': {
+          const queries = (args?.queries as string[]) || [];
+          if (queries.length === 1) {
+            const preview = queries[0].length > 40 ? queries[0].substring(0, 40) + '...' : queries[0];
+            return `Searching the web for "${preview}"`;
+          }
+          return queries.length > 0
+            ? `Searching the web for ${queries.length} topics`
+            : 'Searching the web...';
+        }
         default:
           return `Executing ${toolName}...`;
       }
@@ -397,15 +507,20 @@ export async function* researchQueryStream(
     const getSourceCount = (toolName: string, result: unknown): number => {
       if (!result || typeof result !== 'object') return 0;
       const r = result as Record<string, unknown>;
-      if (toolName === 'searchKnowledge') {
+      if (toolName === 'searchKnowledge' || toolName === 'webSearch') {
         return (r.results as unknown[])?.length || 0;
       }
-      if (toolName === 'searchMultiple') {
+      if (toolName === 'searchMultiple' || toolName === 'webSearchMultiple') {
         const searches = r.searches as Array<{ results: unknown[] }> | undefined;
         return searches?.reduce((sum, s) => sum + (s.results?.length || 0), 0) || 0;
       }
       return 0;
     };
+
+    // Build the final prompt - include KB context if we did an initial search
+    const finalPrompt = knowledgeBaseContext
+      ? `${request.query}${knowledgeBaseContext}`
+      : request.query;
 
     // Run generateText in background with callbacks
     const generatePromise = generateText({
@@ -414,8 +529,8 @@ export async function* researchQueryStream(
       maxOutputTokens: modelConfig.maxTokens,
       providerOptions: modelConfig.providerOptions,
       system: systemPrompt,
-      prompt: request.query,
-      tools: researchTools,
+      prompt: finalPrompt,
+      tools,
       stopWhen: stepCountIs(request.maxSteps || 10),
       onStepFinish: ({ toolCalls: stepToolCalls, text, stepType }) => {
         logger.info(`Step finished: type=${stepType}, tools=${stepToolCalls?.length || 0}, textLen=${text?.length || 0}`);

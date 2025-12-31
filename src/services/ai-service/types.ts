@@ -279,6 +279,8 @@ export interface ResearchStreamOptions {
   maxSteps?: number;
   /** Stream verbose output including tool calls and intermediate results */
   verbose?: boolean;
+  /** Enable web search to find information from the internet */
+  searchWeb?: boolean;
   /** Optional model configuration for Open Notebook API */
   modelConfig?: OpenNotebookModelConfig;
 }

@@ -9,6 +9,7 @@ export interface AppConfig {
   jwtSecret: string;
   geminiApiKey: string;
   anthropicApiKey: string;
+  tavilyApiKey: string;
   openNotebookUrl: string;
   openNotebookPassword: string;
   openNotebookEnabled: boolean;
@@ -30,6 +31,7 @@ export const loadEnvConfig = (): AppConfig => {
     jwtSecret: process.env.JWT_SECRET || 'your-secret-key',
     geminiApiKey: process.env.GEMINI_API_KEY || '',
     anthropicApiKey: process.env.ANTHROPIC_API_KEY || '',
+    tavilyApiKey: process.env.TAVILY_API_KEY || '',
     openNotebookUrl: process.env.OPEN_NOTEBOOK_URL || 'http://localhost:5055',
     openNotebookPassword: process.env.OPEN_NOTEBOOK_PASSWORD || '',
     openNotebookEnabled: process.env.OPEN_NOTEBOOK_ENABLED === 'true',
