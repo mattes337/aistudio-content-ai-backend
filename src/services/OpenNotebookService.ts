@@ -207,17 +207,28 @@ export class OpenNotebookService {
   private static async getCachedModels(): Promise<{ id: string; name: string; provider?: string }[]> {
     const now = Date.now();
     if (this.modelsCache && (now - this.modelsCacheTime) < this.MODELS_CACHE_TTL) {
+      logger.debug(`Using cached models (${this.modelsCache.length} models)`);
       return this.modelsCache;
     }
 
+    logger.info('Fetching models from Open Notebook API...');
     try {
-      const models = await this.makeRequest<{ id: string; name: string; provider?: string }[]>('/api/models');
+      const rawModels = await this.makeRequest<Record<string, unknown>[]>('/api/models');
+      logger.info(`Raw models response: ${JSON.stringify(rawModels.slice(0, 2))}`);
+
+      // Map to expected format - API might use different field names
+      const models = rawModels.map(m => ({
+        id: String(m.id || ''),
+        name: String(m.name || m.model_name || m.display_name || m.id || ''),
+        provider: m.provider ? String(m.provider) : undefined,
+      }));
+
       this.modelsCache = models;
       this.modelsCacheTime = now;
-      logger.debug(`Fetched ${models.length} models from Open Notebook`);
+      logger.info(`Fetched ${models.length} models: ${models.map(m => `${m.name}(${m.id})`).join(', ')}`);
       return models;
     } catch (error) {
-      logger.warn('Failed to fetch models from Open Notebook:', error);
+      logger.error('Failed to fetch models from Open Notebook:', error);
       return this.modelsCache || [];
     }
   }
@@ -270,13 +281,18 @@ export class OpenNotebookService {
    * Resolve model ID with fallback to first available model
    */
   private static async resolveModelIdWithFallback(modelName: string): Promise<string> {
+    logger.info(`Resolving model: "${modelName}"`);
+
     const resolved = await this.resolveModelId(modelName);
     if (resolved) {
+      logger.info(`Model "${modelName}" resolved to: ${resolved}`);
       return resolved;
     }
 
     // Fallback to first available model
     const models = await this.getCachedModels();
+    logger.info(`Fallback: ${models.length} models available`);
+
     const firstModel = models[0];
     if (firstModel) {
       logger.warn(`Using fallback model: ${firstModel.name} (${firstModel.id})`);
@@ -284,7 +300,7 @@ export class OpenNotebookService {
     }
 
     // Last resort: return the original with model: prefix
-    logger.error('No models available, using original model name');
+    logger.error(`No models available from API, using original: model:${modelName}`);
     return `model:${modelName}`;
   }
 
