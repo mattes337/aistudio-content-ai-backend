@@ -362,25 +362,27 @@ export async function* researchQueryStream(
     yield { type: 'status', status: 'Analyzing query and planning research strategy...' };
 
     // Helper to generate descriptive status for each tool type
-    const getToolStatusMessage = (toolName: string, args: Record<string, unknown>): string => {
+    const getToolStatusMessage = (toolName: string, args: Record<string, unknown> | undefined): string => {
       switch (toolName) {
         case 'searchKnowledge': {
-          const query = (args.query as string) || '';
+          const query = (args?.query as string) || '';
           const preview = query.length > 40 ? query.substring(0, 40).replace(/\s+\S*$/, '') + '...' : query;
-          return `Searching knowledge base for "${preview}"`;
+          return preview ? `Searching knowledge base for "${preview}"` : 'Searching knowledge base...';
         }
         case 'searchMultiple': {
-          const queries = (args.queries as string[]) || [];
+          const queries = (args?.queries as string[]) || [];
           if (queries.length === 1) {
             const preview = queries[0].length > 40 ? queries[0].substring(0, 40) + '...' : queries[0];
             return `Searching knowledge base for "${preview}"`;
           }
-          return `Searching knowledge base for ${queries.length} topics`;
+          return queries.length > 0
+            ? `Searching knowledge base for ${queries.length} topics`
+            : 'Searching knowledge base...';
         }
         case 'askKnowledge': {
-          const question = (args.question as string) || '';
+          const question = (args?.question as string) || '';
           const preview = question.length > 40 ? question.substring(0, 40).replace(/\s+\S*$/, '') + '...' : question;
-          return `Asking knowledge base: "${preview}"`;
+          return preview ? `Asking knowledge base: "${preview}"` : 'Asking knowledge base...';
         }
         case 'chatWithNotebook':
           return 'Consulting notebook context...';
@@ -423,9 +425,12 @@ export async function* researchQueryStream(
 
           for (const tc of stepToolCalls) {
             const tcResult = (tc as any).result;
+            // Note: AI SDK uses 'input' for tool arguments, not 'args'
+            const toolInput = (tc as any).input as Record<string, unknown> | undefined;
+
             toolCalls.push({
               name: tc.toolName,
-              args: tc.args,
+              args: toolInput,
               result: tcResult,
             });
 
@@ -435,12 +440,12 @@ export async function* researchQueryStream(
             totalSourcesFound += sourceCount;
 
             // Always emit descriptive status message for tool start
-            const statusMessage = getToolStatusMessage(tc.toolName, tc.args as Record<string, unknown>);
+            const statusMessage = getToolStatusMessage(tc.toolName, toolInput);
             pushEvent({
               type: 'tool_start',
               tool: tc.toolName,
               status: statusMessage,
-              ...(request.verbose && { toolInput: tc.args as Record<string, unknown> }),
+              ...(request.verbose && { toolInput }),
             });
 
             // Emit tool_result only in verbose mode
@@ -448,7 +453,7 @@ export async function* researchQueryStream(
               pushEvent({
                 type: 'tool_result',
                 tool: tc.toolName,
-                toolInput: tc.args as Record<string, unknown>,
+                toolInput,
                 toolResult: tcResult,
               });
             }
