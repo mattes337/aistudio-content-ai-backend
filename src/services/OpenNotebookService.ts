@@ -165,7 +165,8 @@ export class OpenNotebookService {
       limit: request.limit || 100,
       search_sources: request.search_sources ?? true,
       search_notes: request.search_notes ?? true,
-      minimum_score: request.minimum_score ?? 0.2,
+      // Lower default minimum_score to get more results
+      minimum_score: request.minimum_score ?? 0.0,
       ...(request.notebook_id && { notebook_id: request.notebook_id }),
     };
 

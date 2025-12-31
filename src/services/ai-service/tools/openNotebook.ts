@@ -23,10 +23,10 @@ const searchInputSchema = z.object({
   type: z
     .enum(['text', 'vector'])
     .optional()
-    .default('text')
-    .describe('Search type: text for keyword matching (default), vector for semantic'),
+    .default('vector')
+    .describe('Search type: vector for semantic (default), text for keyword matching'),
   limit: z.number().optional().default(10).describe('Maximum number of results to return'),
-  minimum_score: z.number().optional().default(0.1).describe('Minimum relevance score (0-1)'),
+  minimum_score: z.number().optional().default(0).describe('Minimum relevance score (0-1), 0 for no filtering'),
 });
 
 export const searchKnowledgeTool = tool({
@@ -194,8 +194,8 @@ const searchMultipleInputSchema = z.object({
   type: z
     .enum(['text', 'vector'])
     .optional()
-    .default('text')
-    .describe('Search type: text for keyword matching (default), vector for semantic'),
+    .default('vector')
+    .describe('Search type: vector for semantic (default), text for keyword matching'),
   limitPerQuery: z.number().optional().default(5).describe('Maximum results per query'),
 });
 
@@ -212,7 +212,7 @@ export const searchMultipleTool = tool({
           query,
           type: type as 'text' | 'vector',
           limit: limitPerQuery,
-          minimum_score: 0.25,
+          minimum_score: 0,
         });
         logger.info(`searchMultiple query "${query.substring(0, 30)}...": ${searchResults.total_count} total, ${searchResults.results.length} returned`);
 
