@@ -1,10 +1,52 @@
 import { Request, Response } from 'express';
 import { AIService } from '../services/ai-service';
 import { OpenNotebookService } from '../services/OpenNotebookService';
+import { DatabaseService } from '../services/DatabaseService';
 import { loadEnvConfig } from '../utils/env';
 import logger from '../utils/logger';
 
 const config = loadEnvConfig();
+
+/**
+ * Helper to resolve notebook ID based on channelId
+ * - If channelId is provided, tries to find a notebook matching the channel name
+ * - Falls back to catchall notebook
+ */
+async function resolveNotebookId(channelId?: string): Promise<string | undefined> {
+  // If channelId is provided, try to find a channel-specific notebook
+  if (channelId) {
+    try {
+      const channel = await DatabaseService.getChannelById(channelId);
+      if (channel) {
+        logger.info(`Looking up notebook for channel: "${channel.name}"`);
+        const channelNotebook = await OpenNotebookService.findNotebookByName(channel.name);
+        if (channelNotebook) {
+          logger.info(`Found channel notebook: id=${channelNotebook.id}, name="${channelNotebook.name}"`);
+          return channelNotebook.id;
+        }
+        logger.info(`No notebook found matching channel name "${channel.name}", falling back to catchall`);
+      }
+    } catch (err) {
+      logger.warn('Failed to look up channel notebook:', err);
+    }
+  }
+
+  // Fall back to catchall notebook
+  try {
+    const catchallNotebook = await OpenNotebookService.findNotebookByName(
+      config.openNotebookCatchallName
+    );
+    if (catchallNotebook) {
+      logger.info(`Using catchall notebook: id=${catchallNotebook.id}, name="${catchallNotebook.name}"`);
+      return catchallNotebook.id;
+    }
+    logger.warn(`Catchall notebook "${config.openNotebookCatchallName}" not found`);
+  } catch (err) {
+    logger.warn('Failed to look up catchall notebook:', err);
+  }
+
+  return undefined;
+}
 
 export class AIController {
   // ============== Legacy Endpoints (kept for backwards compatibility) ==============
@@ -294,19 +336,10 @@ export class AIController {
         return res.status(400).json({ message: 'Query is required' });
       }
 
-      // Look up the catchall notebook by name from config
-      let notebookId: string | undefined;
-      try {
-        const catchallNotebook = await OpenNotebookService.findNotebookByName(
-          config.openNotebookCatchallName
-        );
-        if (catchallNotebook) {
-          notebookId = catchallNotebook.id;
-        } else {
-          logger.warn(`Catchall notebook "${config.openNotebookCatchallName}" not found`);
-        }
-      } catch (err) {
-        logger.warn('Failed to look up catchall notebook:', err);
+      // Resolve notebook ID: channel-specific if channelId provided, otherwise catchall
+      const notebookId = await resolveNotebookId(channelId);
+      if (!notebookId) {
+        logger.warn('No notebook found for research query - search may return no results');
       }
 
       // Build optional model config if any model params provided
@@ -335,19 +368,10 @@ export class AIController {
         return res.status(400).json({ message: 'Query is required' });
       }
 
-      // Look up the catchall notebook by name from config
-      let notebookId: string | undefined;
-      try {
-        const catchallNotebook = await OpenNotebookService.findNotebookByName(
-          config.openNotebookCatchallName
-        );
-        if (catchallNotebook) {
-          notebookId = catchallNotebook.id;
-        } else {
-          logger.warn(`Catchall notebook "${config.openNotebookCatchallName}" not found`);
-        }
-      } catch (err) {
-        logger.warn('Failed to look up catchall notebook:', err);
+      // Resolve notebook ID: channel-specific if channelId provided, otherwise catchall
+      const notebookId = await resolveNotebookId(channelId);
+      if (!notebookId) {
+        logger.warn('No notebook found for research query - search may return no results');
       }
 
       // Build optional model config if any model params provided
