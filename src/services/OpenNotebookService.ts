@@ -329,14 +329,16 @@ export class OpenNotebookService {
       this.resolveModelIdWithFallback(request.final_answer_model || defaultModel),
     ]);
 
-    logger.debug(`Ask models: strategy=${strategyModel}, answer=${answerModel}, final=${finalAnswerModel}`);
-
-    return await this.makeRequest<AskResponse>('/api/search/ask/simple', 'POST', {
+    const askBody = {
       question: request.question,
       strategy_model: strategyModel,
       answer_model: answerModel,
       final_answer_model: finalAnswerModel,
-    });
+    };
+
+    logger.info(`Ask request body: ${JSON.stringify(askBody)}`);
+
+    return await this.makeRequest<AskResponse>('/api/search/ask/simple', 'POST', askBody);
   }
 
   /**
