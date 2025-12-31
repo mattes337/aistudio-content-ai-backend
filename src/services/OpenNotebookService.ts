@@ -239,10 +239,8 @@ export class OpenNotebookService {
    * @returns The full model ID (e.g., "model:abc123") or null if not found
    */
   private static async resolveModelId(modelName: string): Promise<string | null> {
-    // If already a full model ID, return as-is
-    if (modelName.startsWith('model:')) {
-      return modelName;
-    }
+    // Strip "model:" prefix if present - we need to look up by actual name
+    const searchName = modelName.startsWith('model:') ? modelName.slice(6) : modelName;
 
     const models = await this.getCachedModels();
     if (models.length === 0) {
@@ -250,12 +248,19 @@ export class OpenNotebookService {
       return null;
     }
 
-    const lowerName = modelName.toLowerCase();
+    const lowerName = searchName.toLowerCase();
 
-    // Try exact match on name first
-    let match = models.find(m => m.name.toLowerCase() === lowerName);
+    // Try exact match on ID first (in case they passed a valid model ID)
+    let match = models.find(m => m.id === modelName || m.id === `model:${searchName}`);
     if (match) {
-      logger.debug(`Model "${modelName}" resolved to "${match.id}" (exact match)`);
+      logger.debug(`Model "${modelName}" resolved to "${match.id}" (ID match)`);
+      return match.id;
+    }
+
+    // Try exact match on name
+    match = models.find(m => m.name.toLowerCase() === lowerName);
+    if (match) {
+      logger.debug(`Model "${modelName}" resolved to "${match.id}" (exact name match: ${match.name})`);
       return match.id;
     }
 
@@ -273,7 +278,7 @@ export class OpenNotebookService {
       return match.id;
     }
 
-    logger.warn(`Model "${modelName}" not found. Available: ${models.map(m => m.name).join(', ')}`);
+    logger.warn(`Model "${modelName}" not found. Available: ${models.map(m => `${m.name}(${m.id})`).join(', ')}`);
     return null;
   }
 
