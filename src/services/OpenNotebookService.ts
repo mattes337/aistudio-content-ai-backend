@@ -11,6 +11,8 @@ export interface SearchRequest {
   search_sources?: boolean;
   search_notes?: boolean;
   minimum_score?: number;
+  /** Optional notebook ID to search within a specific notebook */
+  notebook_id?: string;
 }
 
 export interface SearchResult {
@@ -157,16 +159,19 @@ export class OpenNotebookService {
    * Search the knowledge base
    */
   static async search(request: SearchRequest): Promise<SearchResponse> {
-    logger.info(`Searching knowledge base: "${request.query.substring(0, 50)}..."`);
-
-    const rawResult = await this.makeRequest<RawSearchResponse>('/api/search', 'POST', {
+    const searchBody = {
       query: request.query,
       type: request.type || 'text',
       limit: request.limit || 100,
       search_sources: request.search_sources ?? true,
       search_notes: request.search_notes ?? true,
       minimum_score: request.minimum_score ?? 0.2,
-    });
+      ...(request.notebook_id && { notebook_id: request.notebook_id }),
+    };
+
+    logger.info(`Searching knowledge base: "${request.query.substring(0, 50)}..." with params: ${JSON.stringify({ ...searchBody, query: searchBody.query.substring(0, 30) + '...' })}`);
+
+    const rawResult = await this.makeRequest<RawSearchResponse>('/api/search', 'POST', searchBody);
 
     logger.info(`Search API response: total_count=${rawResult.total_count}, results=${rawResult.results?.length || 0}, search_type=${rawResult.search_type}`);
 
