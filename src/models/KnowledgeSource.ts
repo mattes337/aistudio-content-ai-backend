@@ -1,3 +1,21 @@
+export type KnowledgeSourceType = 'text' | 'website' | 'pdf' | 'instagram' | 'youtube' | 'video_file' | 'audio_file';
+export type ProcessingStatus = 'pending' | 'processed' | 'error' | 'deleted';
+export type EmbeddingStatus = 'pending' | 'complete' | 'failed';
+export type FileStatus = 'active' | 'uploading' | 'missing' | 'deleted';
+
+/**
+ * Data fields that can be stored with a knowledge source.
+ * All fields are optional for backwards compatibility.
+ */
+export interface KnowledgeSourceData {
+  /** Selected transformations to apply via Open Notebook (e.g., ["dense-summary", "key-insights"]) */
+  transformations?: string[];
+  /** Insight IDs created by Open Notebook for each transformation: { transformation_name: insight_id } */
+  open_notebook_insight_ids?: Record<string, string>;
+  /** Any additional custom data fields */
+  [key: string]: any;
+}
+
 export interface KnowledgeSource {
   id: string;
   name: string;
@@ -7,7 +25,7 @@ export interface KnowledgeSource {
   file_path?: string;
   file_status: FileStatus;
   folder_path?: string; // Virtual folder path for organization (e.g., "my-files/subA/texts")
-  data: Record<string, any>;
+  data: KnowledgeSourceData;
   // Open Notebook sync tracking
   open_notebook_synced_at?: Date;
   open_notebook_source_ids?: Record<string, string>; // { channel_id: notebook_source_id }
@@ -29,17 +47,12 @@ export interface KnowledgeSourceChannel {
   channel_id: string;
 }
 
-export type KnowledgeSourceType = 'text' | 'website' | 'pdf' | 'instagram' | 'youtube' | 'video_file' | 'audio_file';
-export type ProcessingStatus = 'pending' | 'processed' | 'error' | 'deleted';
-export type EmbeddingStatus = 'pending' | 'complete' | 'failed';
-export type FileStatus = 'active' | 'uploading' | 'missing' | 'deleted';
-
 export interface CreateKnowledgeSourceRequest {
   name: string;
   type: KnowledgeSourceType;
   source_origin: string;
   folder_path?: string; // Virtual folder path for organization
-  data?: Record<string, any>;
+  data?: KnowledgeSourceData;
 }
 
 export interface UpdateKnowledgeSourceRequest extends Partial<CreateKnowledgeSourceRequest> {
