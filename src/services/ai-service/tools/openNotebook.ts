@@ -4,17 +4,28 @@ import { OpenNotebookService } from '../../OpenNotebookService';
 import logger from '../../../utils/logger';
 import type { OpenNotebookModelConfig } from '../types';
 
-// Request context for passing model config to tools
+// Request context for passing model config and notebook ID to tools
 let currentModelConfig: OpenNotebookModelConfig | undefined;
+let currentNotebookId: string | undefined;
 
 /** Set the model config for the current request */
 export function setRequestModelConfig(config: OpenNotebookModelConfig | undefined): void {
   currentModelConfig = config;
 }
 
+/** Set the notebook ID for the current request */
+export function setRequestNotebookId(notebookId: string | undefined): void {
+  currentNotebookId = notebookId;
+}
+
 /** Clear the model config after request completes */
 export function clearRequestModelConfig(): void {
   currentModelConfig = undefined;
+}
+
+/** Clear the notebook ID after request completes */
+export function clearRequestNotebookId(): void {
+  currentNotebookId = undefined;
 }
 
 // Search tool - searches the knowledge base
@@ -41,6 +52,7 @@ export const searchKnowledgeTool = tool({
         type: type as 'text' | 'vector',
         limit,
         minimum_score,
+        notebook_id: currentNotebookId,
       });
       logger.info(`searchKnowledge results: ${searchResults.total_count} total, ${searchResults.results.length} returned`);
 
@@ -93,6 +105,7 @@ export const askKnowledgeTool = tool({
         strategy_model: currentModelConfig?.strategyModel,
         answer_model: currentModelConfig?.answerModel,
         final_answer_model: currentModelConfig?.finalAnswerModel,
+        notebook_id: currentNotebookId,
       });
       return {
         success: true,
@@ -213,6 +226,7 @@ export const searchMultipleTool = tool({
           type: type as 'text' | 'vector',
           limit: limitPerQuery,
           minimum_score: 0,
+          notebook_id: currentNotebookId,
         });
         logger.info(`searchMultiple query "${query.substring(0, 30)}...": ${searchResults.total_count} total, ${searchResults.results.length} returned`);
 

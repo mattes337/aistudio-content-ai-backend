@@ -1,6 +1,6 @@
 import { generateText, stepCountIs } from 'ai';
 import { createModelConfig, selectModel } from './models';
-import { researchTools, setRequestModelConfig, clearRequestModelConfig } from './tools';
+import { researchTools, setRequestModelConfig, clearRequestModelConfig, setRequestNotebookId, clearRequestNotebookId } from './tools';
 import type {
   AgentQuery,
   AgentResponse,
@@ -249,8 +249,9 @@ function extractSourcesFromToolCalls(
 export async function researchQuery(request: AgentQuery): Promise<AgentResponse> {
   logger.info(`Research agent query: "${request.query.substring(0, 50)}..."`);
 
-  // Set model config for tools to use
+  // Set model config and notebook ID for tools to use
   setRequestModelConfig(request.modelConfig);
+  setRequestNotebookId(request.notebookId);
 
   try {
     return await withErrorHandling(
@@ -304,6 +305,7 @@ export async function researchQuery(request: AgentQuery): Promise<AgentResponse>
     );
   } finally {
     clearRequestModelConfig();
+    clearRequestNotebookId();
   }
 }
 
@@ -316,8 +318,9 @@ export async function* researchQueryStream(
 ): AsyncGenerator<ResearchStreamChunk> {
   logger.info(`Research agent stream: "${request.query.substring(0, 50)}..." verbose=${request.verbose}`);
 
-  // Set model config for tools to use
+  // Set model config and notebook ID for tools to use
   setRequestModelConfig(request.modelConfig);
+  setRequestNotebookId(request.notebookId);
 
   // Event queue for yielding from callbacks
   const eventQueue: ResearchStreamChunk[] = [];
@@ -453,6 +456,7 @@ export async function* researchQueryStream(
     };
   } finally {
     clearRequestModelConfig();
+    clearRequestNotebookId();
   }
 }
 

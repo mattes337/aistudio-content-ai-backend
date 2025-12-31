@@ -53,6 +53,8 @@ export interface AskRequest {
   strategy_model?: string;
   answer_model?: string;
   final_answer_model?: string;
+  /** Optional notebook ID to ask within a specific notebook */
+  notebook_id?: string;
 }
 
 export interface AskResponse {
@@ -334,6 +336,7 @@ export class OpenNotebookService {
       strategy_model: strategyModel,
       answer_model: answerModel,
       final_answer_model: finalAnswerModel,
+      ...(request.notebook_id && { notebook_id: request.notebook_id }),
     };
 
     logger.info(`Ask request body: ${JSON.stringify(askBody)}`);

@@ -6,6 +6,8 @@ import {
   searchMultipleTool,
   setRequestModelConfig,
   clearRequestModelConfig,
+  setRequestNotebookId,
+  clearRequestNotebookId,
 } from './openNotebook';
 
 // Tool registry for agent mode (basic tools)
@@ -31,4 +33,6 @@ export {
   searchMultipleTool,
   setRequestModelConfig,
   clearRequestModelConfig,
+  setRequestNotebookId,
+  clearRequestNotebookId,
 };
