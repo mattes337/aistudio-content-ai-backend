@@ -72,10 +72,14 @@ You decide when and how to retrieve information. Follow this strategy IN ORDER:
 1. **ALWAYS START** with searchKnowledge(type: "vector") for semantic matches on the user's question
 2. **IF** results are sparse or low-scoring, try searchKnowledge(type: "text") for keyword matches
 3. **FOR** complex questions requiring reasoning, use askKnowledge to get a synthesized answer
-4. **FOR** comparing multiple topics, use searchMultiple to search several queries in parallel
+4. **FOR** comparing multiple topics/authors/concepts, use searchMultiple to search each one separately in parallel
+   - Example: "compare A with B and C" → searchMultiple with queries: ["A", "B", "C"]
+   - Example: "X by Author1 vs Author2" → searchMultiple with queries: ["X Author1", "X Author2"]
 5. **FOR** follow-up depth on a topic, use chatWithNotebook for multi-turn exploration
 6. **FOR** comprehensive overview, use buildContext to get full notebook context
-7. **ONLY** respond when you have sufficient context - it's better to search more than guess${webSearchSection}
+7. **ONLY** respond when you have sufficient context - it's better to search more than guess
+
+**IMPORTANT - COMPOUND QUERIES**: When the user mentions multiple distinct entities (people, books, concepts) to compare, you MUST search for EACH entity separately using searchMultiple. A single search will likely miss some entities.${webSearchSection}
 
 ## AVAILABLE TOOLS
 - **searchKnowledge**: Find specific content (vector=semantic, text=keyword)
@@ -240,14 +244,20 @@ function extractSourcesFromToolCalls(
         const id = r.sourceId || `${r.source}-${r.content.substring(0, 50)}`;
         if (!seenIds.has(id)) {
           seenIds.add(id);
-          sources.push({
+          // Extract URL from metadata if available
+          const metaUrl = r.metadata?.url || r.metadata?.source_url || r.metadata?.link;
+          const sourceRef: SourceReference = {
             id,
             name: r.source,
             excerpt: r.content.substring(0, 200),
             score: r.score || 0,
             location: extractLocationFromMetadata(r.metadata),
             sourceType: detectSourceType(r.source, r.metadata),
-          });
+          };
+          if (metaUrl) {
+            sourceRef.url = String(metaUrl);
+          }
+          sources.push(sourceRef);
         }
       }
     }
@@ -260,14 +270,20 @@ function extractSourcesFromToolCalls(
           const id = r.sourceId || `${r.source}-${r.content.substring(0, 50)}`;
           if (!seenIds.has(id)) {
             seenIds.add(id);
-            sources.push({
+            // Extract URL from metadata if available
+            const metaUrl = r.metadata?.url || r.metadata?.source_url || r.metadata?.link;
+            const sourceRef: SourceReference = {
               id,
               name: r.source,
               excerpt: r.content.substring(0, 200),
               score: r.score || 0,
               location: extractLocationFromMetadata(r.metadata),
               sourceType: detectSourceType(r.source, r.metadata),
-            });
+            };
+            if (metaUrl) {
+              sourceRef.url = String(metaUrl);
+            }
+            sources.push(sourceRef);
           }
         }
       }
@@ -282,6 +298,44 @@ function extractSourcesFromToolCalls(
         score: 1.0,
         usedInResponse: true,
       });
+    }
+
+    // Extract from webSearch results
+    if (tc.name === 'webSearch' && Array.isArray(result.results)) {
+      for (const r of result.results as { title: string; url: string; content: string; score: number }[]) {
+        const id = `web-${r.url}`;
+        if (!seenIds.has(id)) {
+          seenIds.add(id);
+          sources.push({
+            id,
+            name: r.title,
+            excerpt: r.content.substring(0, 200),
+            score: r.score || 0,
+            sourceType: 'website',
+            url: r.url,
+          });
+        }
+      }
+    }
+
+    // Extract from webSearchMultiple results
+    if (tc.name === 'webSearchMultiple' && Array.isArray(result.searches)) {
+      for (const search of result.searches as { query: string; results: { title: string; url: string; content: string; score: number }[] }[]) {
+        for (const r of search.results) {
+          const id = `web-${r.url}`;
+          if (!seenIds.has(id)) {
+            seenIds.add(id);
+            sources.push({
+              id,
+              name: r.title,
+              excerpt: r.content.substring(0, 200),
+              score: r.score || 0,
+              sourceType: 'website',
+              url: r.url,
+            });
+          }
+        }
+      }
     }
   }
 

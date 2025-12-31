@@ -148,6 +148,8 @@ export interface SourceReference {
   location?: SourceLocation;
   /** Source type (e.g., 'text', 'pdf', 'video', 'audio', 'website') */
   sourceType?: string;
+  /** URL to access the source (primarily for web search results) */
+  url?: string;
 }
 
 /**
