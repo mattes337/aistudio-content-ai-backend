@@ -128,6 +128,33 @@ router.get('/folders', KnowledgeSourceController.getFolderTree);
 
 /**
  * @swagger
+ * /api/knowledge-sources/transformations:
+ *   get:
+ *     summary: Get available transformations
+ *     description: Returns list of transformation names that can be applied to sources via Open Notebook
+ *     tags: [Knowledge Sources]
+ *     security:
+ *       - bearerAuth: []
+ *     responses:
+ *       200:
+ *         description: List of available transformation names
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 transformations:
+ *                   type: array
+ *                   items:
+ *                     type: string
+ *                   example: ["dense-summary", "key-insights", "reflections"]
+ *       500:
+ *         description: Internal server error
+ */
+router.get('/transformations', KnowledgeSourceController.getAvailableTransformations);
+
+/**
+ * @swagger
  * /api/knowledge-sources:
  *   post:
  *     summary: Create a new knowledge source

@@ -123,6 +123,22 @@ export class KnowledgeSourceController {
     return tree;
   }
 
+  static async getAvailableTransformations(req: Request, res: Response) {
+    try {
+      // Get transformations from environment variable (same source as processor)
+      const transformationsEnv = process.env.OPEN_NOTEBOOK_TRANSFORMATIONS || '';
+      const transformations = transformationsEnv
+        .split(',')
+        .map(t => t.trim())
+        .filter(t => t.length > 0);
+
+      res.json({ transformations });
+    } catch (error) {
+      logger.error('Error fetching available transformations:', error);
+      res.status(500).json({ message: 'Internal server error' });
+    }
+  }
+
   static async getKnowledgeSourceById(req: Request, res: Response) {
     try {
       const { sourceId } = req.params;
