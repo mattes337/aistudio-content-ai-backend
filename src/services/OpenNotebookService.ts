@@ -34,10 +34,14 @@ interface RawSearchResult {
   id: string;
   parent_id?: string;
   content?: string;
+  /** Array of matching text snippets (used by vector search) */
+  matches?: string[];
   title?: string;
   source_name?: string;
   relevance?: number;
   score?: number;
+  /** Similarity score from vector search (0-1) */
+  similarity?: number;
   type?: string;
   metadata?: Record<string, any>;
 }
@@ -237,26 +241,31 @@ export class OpenNotebookService {
     if (rawResult.results && rawResult.results.length > 0) {
       const firstRaw = rawResult.results[0];
       logger.debug(`Raw API result fields: ${Object.keys(firstRaw).join(', ')}`);
-      logger.debug(`Raw result: id=${firstRaw.id}, type=${firstRaw.type}, title=${firstRaw.title}, relevance=${firstRaw.relevance}, score=${firstRaw.score}, hasContent=${!!firstRaw.content}, contentLen=${firstRaw.content?.length || 0}`);
+      logger.debug(`Raw result: id=${firstRaw.id}, type=${firstRaw.type}, title=${firstRaw.title}, similarity=${firstRaw.similarity}, hasContent=${!!firstRaw.content}, hasMatches=${!!firstRaw.matches}, matchesLen=${firstRaw.matches?.length || 0}`);
     }
 
     // Transform raw API response to normalized format
     const transformedResults: SearchResult[] = (rawResult.results || []).map((raw) => {
-      // For source_insight types, the content might be in title or a different field
-      // If content is missing, use title as a fallback description
+      // Content: prefer content field, then matches array (joined), then fallback
       let content = raw.content || '';
+      if (!content && raw.matches && raw.matches.length > 0) {
+        // Join matches array into content string
+        content = raw.matches.join('\n\n');
+      }
       if (!content && raw.title && raw.id.startsWith('source_insight:')) {
         // For insights without content, indicate the source type
         content = `[Insight from: ${raw.title}]`;
       }
+
+      // Score: prefer similarity (vector search), then score, then relevance
+      const score = raw.similarity ?? raw.score ?? raw.relevance ?? 0;
 
       return {
         id: raw.id,
         content,
         // Source name: prefer source_name, fall back to title
         source_name: raw.source_name || raw.title || 'Unknown',
-        // Score: prefer score, fall back to relevance, default to small positive value for insights
-        score: raw.score ?? raw.relevance ?? (raw.id.startsWith('source_insight:') ? 0.1 : 0),
+        score,
         metadata: raw.metadata,
       };
     });
