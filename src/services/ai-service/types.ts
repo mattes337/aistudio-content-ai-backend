@@ -256,7 +256,7 @@ export interface StreamChunk {
 // ============== Research Streaming Types ==============
 
 export interface ResearchStreamChunk {
-  type: 'status' | 'tool_start' | 'tool_result' | 'tool_call' | 'delta' | 'sources' | 'done' | 'error';
+  type: 'status' | 'tool_start' | 'tool_result' | 'delta' | 'sources' | 'done' | 'error';
   /** Status message for current operation */
   status?: string;
   /** Tool name being executed */
@@ -275,15 +275,6 @@ export interface ResearchStreamChunk {
   steps?: number;
   /** Error message */
   error?: string;
-  /** Intent tool call result (for create_article_draft, create_post_draft, create_media_draft) */
-  intentResult?: {
-    type: 'article_draft' | 'post_draft' | 'media_draft';
-    title?: string;
-    content?: string;
-    caption?: string;
-    platform?: string;
-    prompt?: string;
-  };
 }
 
 /** Model configuration for Open Notebook API calls */
@@ -306,8 +297,6 @@ export interface ResearchStreamOptions {
   verbose?: boolean;
   /** Enable web search to find information from the internet */
   searchWeb?: boolean;
-  /** Enable intent tools for content creation (create_article_draft, create_post_draft, create_media_draft) */
-  enableIntentTools?: boolean;
   /** Optional model configuration for Open Notebook API */
   modelConfig?: OpenNotebookModelConfig;
 }
