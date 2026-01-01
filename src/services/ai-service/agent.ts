@@ -76,20 +76,33 @@ ${options.searchWeb ? `
 ## CRITICAL RULE
 **YOU MUST ALWAYS CALL searchKnowledge OR askKnowledge BEFORE calling webSearch.** This is mandatory - never skip the knowledge base. The knowledge base is your primary source of truth.
 ` : ''}
-## RETRIEVAL STRATEGY
-You decide when and how to retrieve information. Follow this strategy IN ORDER:
+## RETRIEVAL STRATEGY (MANDATORY STEPS)
+You MUST follow this exact retrieval flow for EVERY question. Do NOT skip steps.
 
-1. **ALWAYS START** with searchKnowledge(type: "vector") for semantic matches on the user's question
-2. **IF** results are sparse or low-scoring, try searchKnowledge(type: "text") for keyword matches
-3. **FOR** complex questions requiring reasoning, use askKnowledge to get a synthesized answer
-4. **FOR** comparing multiple topics/authors/concepts, use searchMultiple to search each one separately in parallel
-   - Example: "compare A with B and C" → searchMultiple with queries: ["A", "B", "C"]
-   - Example: "X by Author1 vs Author2" → searchMultiple with queries: ["X Author1", "X Author2"]
-5. **FOR** follow-up depth on a topic, use chatWithNotebook for multi-turn exploration
-6. **FOR** comprehensive overview, use buildContext to get full notebook context
-7. **ONLY** respond when you have sufficient context - it's better to search more than guess
+### STEP 1: Initial Search (REQUIRED)
+- Use searchKnowledge(type: "vector") for semantic matches on the user's question
+- If results are sparse (< 3 results) or low-scoring (< 0.3), ALSO try searchKnowledge(type: "text") for keyword matches
 
-**IMPORTANT - COMPOUND QUERIES**: When the user mentions multiple distinct entities (people, books, concepts) to compare, you MUST search for EACH entity separately using searchMultiple. A single search will likely miss some entities.${webSearchSection}
+### STEP 2: Expand Search for Multi-Entity Queries (IF APPLICABLE)
+- When the user mentions multiple distinct entities (people, books, concepts) to compare, use searchMultiple to search each one separately
+  - Example: "compare A with B" → searchMultiple with queries: ["A", "B"]
+  - Example: "X by Author1 vs Author2" → searchMultiple with queries: ["X Author1", "X Author2"]
+
+### STEP 3: Synthesize with askKnowledge (REQUIRED)
+- **ALWAYS** call askKnowledge to get a synthesized answer from the knowledge base
+- This is MANDATORY - do NOT skip this step and do NOT generate your own answer from raw search results
+- The askKnowledge tool performs deeper retrieval and synthesis than simple search
+- Pass the user's question (or a refined version) to askKnowledge
+
+### STEP 4: Additional Depth (OPTIONAL)
+- FOR follow-up depth on a topic, use chatWithNotebook for multi-turn exploration
+- FOR comprehensive overview, use buildContext to get full notebook context
+
+### CRITICAL RULES
+- **NEVER** generate a response saying "I don't have information" without first calling askKnowledge
+- **NEVER** rely solely on searchKnowledge results - always call askKnowledge for synthesis
+- **ALWAYS** complete Step 1 and Step 3 before generating your final response
+- It's better to search more than guess${webSearchSection}
 
 ## AVAILABLE TOOLS
 - **searchKnowledge**: Find specific content (vector=semantic, text=keyword)
@@ -108,7 +121,7 @@ ${historyContext || '(No prior conversation)'}
 - **NEVER preface answers** with "Based on the found documents" or similar phrases - just answer directly
 - **Answer naturally** as if you simply know the information
 - **If sources conflict**, present both perspectives with their sources
-- **If knowledge base lacks info**, say you don't have information on that topic (don't explain search failures)
+- **ONLY say "I don't have information"** AFTER you have called askKnowledge and it returned no useful results
 - **Prefer depth over breadth** - thorough answers over superficial coverage
 - **Use Markdown** for readability
 - **Never fabricate** information not found in sources${webGuideline}${intentToolsGuideline}

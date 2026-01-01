@@ -30,9 +30,10 @@ export const MODEL_CONFIGS: Record<string, ModelConfig> = {
   image: { model: MODELS.FLASH, temperature: 0.7, maxTokens: 1024 },
 
   // Complex reasoning - use Pro with thinking
+  // Note: agent uses lower temperature (0.3) for consistent tool-calling behavior
   research: { model: MODELS.PRO, temperature: 0.7, maxTokens: 4096, thinkingLevel: 'low' },
   bulkContent: { model: MODELS.PRO, temperature: 0.7, maxTokens: 8192 },
-  agent: { model: MODELS.PRO, temperature: 0.7, maxTokens: 4096, thinkingLevel: 'medium' },
+  agent: { model: MODELS.PRO, temperature: 0.3, maxTokens: 4096, thinkingLevel: 'medium' },
 };
 
 // Default configuration (used as fallback)

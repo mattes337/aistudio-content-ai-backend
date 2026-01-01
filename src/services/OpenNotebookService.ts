@@ -245,52 +245,28 @@ export class OpenNotebookService {
     }
 
     // Transform raw API response to normalized format
-    const transformedResults: SearchResult[] = (rawResult.results || []).map((raw) => {
-      // Content: prefer content field, then matches array (joined), then fallback
-      let content = raw.content || '';
-      if (!content && raw.matches && raw.matches.length > 0) {
-        // Join matches array into content string
-        content = raw.matches.join('\n\n');
-      }
-      if (!content && raw.title && raw.id.startsWith('source_insight:')) {
-        // For insights without content, indicate the source type
-        content = `[Insight from: ${raw.title}]`;
-      }
-
+    // NOTE: We intentionally do NOT use the 'matches' field as content.
+    // The matches field contains highlight snippets from vector search, but the agent
+    // should use askKnowledge for full content synthesis. Leaving content empty
+    // encourages the agent to try text search and askKnowledge for better results.
+    const transformedResults: SearchResult[] = (rawResult.results || []).map((raw) => ({
+      id: raw.id,
+      // Content: use content field only, or empty string if not provided
+      content: raw.content || '',
+      // Source name: prefer source_name, fall back to title
+      source_name: raw.source_name || raw.title || 'Unknown',
       // Score: prefer similarity (vector search), then score, then relevance
-      const score = raw.similarity ?? raw.score ?? raw.relevance ?? 0;
-
-      return {
-        id: raw.id,
-        content,
-        // Source name: prefer source_name, fall back to title
-        source_name: raw.source_name || raw.title || 'Unknown',
-        score,
-        metadata: raw.metadata,
-      };
-    });
-
-    // Filter out results with no useful content (empty or just placeholder)
-    const usefulResults = transformedResults.filter((r) => {
-      // Keep if it has actual content (not just placeholder)
-      if (r.content && r.content.length > 50 && !r.content.startsWith('[Insight from:')) {
-        return true;
-      }
-      // Keep insights even without content for now (they might still be useful as references)
-      if (r.id.startsWith('source_insight:')) {
-        return true;
-      }
-      return r.content.length > 0;
-    });
+      score: raw.similarity ?? raw.score ?? raw.relevance ?? 0,
+      metadata: raw.metadata,
+    }));
 
     // Log transformation result
     if (transformedResults.length > 0) {
-      logger.debug(`Transformed ${transformedResults.length} results, ${usefulResults.length} with useful content`);
-      logger.debug(`First result: source=${transformedResults[0].source_name}, score=${transformedResults[0].score}, contentLen=${transformedResults[0].content.length}`);
+      logger.debug(`Transformed result: source=${transformedResults[0].source_name}, score=${transformedResults[0].score}, contentLen=${transformedResults[0].content.length}`);
     }
 
     return {
-      results: usefulResults,
+      results: transformedResults,
       total_count: rawResult.total_count,
       search_type: rawResult.search_type,
     };
