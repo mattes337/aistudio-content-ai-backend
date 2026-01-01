@@ -852,6 +852,14 @@ router.post('/research', AIController.researchQuery);
  *                 type: boolean
  *                 default: false
  *                 description: Include detailed tool calls and intermediate results in stream
+ *               searchWeb:
+ *                 type: boolean
+ *                 default: false
+ *                 description: Enable web search to supplement knowledge base results
+ *               enableIntentTools:
+ *                 type: boolean
+ *                 default: false
+ *                 description: Enable content creation tools (create_article_draft, create_post_draft, create_media_draft)
  *     responses:
  *       200:
  *         description: Streaming research response (SSE)
@@ -862,7 +870,7 @@ router.post('/research', AIController.researchQuery);
  *               properties:
  *                 type:
  *                   type: string
- *                   enum: [status, tool_start, tool_result, delta, sources, done, error]
+ *                   enum: [status, tool_start, tool_result, tool_call, delta, sources, done, error]
  *                 status:
  *                   type: string
  *                 tool:
@@ -881,6 +889,23 @@ router.post('/research', AIController.researchQuery);
  *                   type: number
  *                 error:
  *                   type: string
+ *                 intentResult:
+ *                   type: object
+ *                   description: Content creation result (when enableIntentTools is true)
+ *                   properties:
+ *                     type:
+ *                       type: string
+ *                       enum: [article_draft, post_draft, media_draft]
+ *                     title:
+ *                       type: string
+ *                     content:
+ *                       type: string
+ *                     caption:
+ *                       type: string
+ *                     platform:
+ *                       type: string
+ *                     prompt:
+ *                       type: string
  *       500:
  *         description: Internal server error
  */

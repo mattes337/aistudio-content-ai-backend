@@ -20,7 +20,7 @@ import logger from '../../utils/logger';
 function buildRetrievalSystemPrompt(
   notebookId: string | undefined,
   historyContext: string,
-  options: { searchWeb?: boolean } = {}
+  options: { searchWeb?: boolean; enableIntentTools?: boolean } = {}
 ): string {
   const webSearchSection = options.searchWeb
     ? `
@@ -51,6 +51,26 @@ function buildRetrievalSystemPrompt(
 5. **Never skip the knowledge base** - even if the question seems web-focused`
     : '';
 
+  const intentToolsSection = options.enableIntentTools
+    ? `
+
+## CONTENT CREATION TOOLS
+- **create_article_draft**: Create a new blog article draft. Use when the user asks to "create an article", "draft a post", "write a blog" about a topic.
+- **create_post_draft**: Create a social media post. Use when the user asks to "create a post", "draft an Instagram/LinkedIn/Twitter post".
+- **create_media_draft**: Generate an image. Use when the user asks to "create an image", "generate media", or "make a visual".
+
+### CRITICAL TOOL CALLING RULES:
+1. **CALL IMMEDIATELY**: When the user explicitly asks to create content (article, post, image), CALL THE TOOL IMMEDIATELY.
+2. **DO NOT ASK FOR DETAILS**: Generate a creative title/caption and full content yourself based on the conversation history.
+3. **USE CONTEXT**: Base the generated content on the research findings and conversation history.
+4. **BE CREATIVE**: Generate complete, high-quality content - don't ask the user what they want to include.`
+    : '';
+
+  const intentToolsGuideline = options.enableIntentTools
+    ? `
+- **When asked to CREATE content**, call the appropriate tool with generated content`
+    : '';
+
   return `You are a Research Agent with access to a knowledge base through multiple tools.${options.searchWeb ? ' You also have access to web search, but you MUST ALWAYS search the knowledge base FIRST before using web search.' : ''}
 ${options.searchWeb ? `
 ## CRITICAL RULE
@@ -76,7 +96,7 @@ You decide when and how to retrieve information. Follow this strategy IN ORDER:
 - **askKnowledge**: Get AI-synthesized answer from multiple sources
 - **searchMultiple**: Search multiple queries in parallel (max 5)
 - **chatWithNotebook**: Multi-turn conversation for depth (requires notebookId)
-- **buildContext**: Get full notebook context (requires notebookId)${webToolsSection}
+- **buildContext**: Get full notebook context (requires notebookId)${webToolsSection}${intentToolsSection}
 
 ${notebookId ? `## NOTEBOOK ID\nFor tools that require it: "${notebookId}"` : '## NOTE\nNo notebook ID provided - chatWithNotebook and buildContext are unavailable.'}
 
@@ -91,7 +111,7 @@ ${historyContext || '(No prior conversation)'}
 - **If knowledge base lacks info**, say you don't have information on that topic (don't explain search failures)
 - **Prefer depth over breadth** - thorough answers over superficial coverage
 - **Use Markdown** for readability
-- **Never fabricate** information not found in sources${webGuideline}
+- **Never fabricate** information not found in sources${webGuideline}${intentToolsGuideline}
 
 ## CITATION FORMAT (CRITICAL)
 When citing sources, use this EXACT inline reference format:
@@ -417,7 +437,7 @@ export async function researchQuery(request: AgentQuery): Promise<AgentResponse>
 export async function* researchQueryStream(
   request: ResearchStreamOptions
 ): AsyncGenerator<ResearchStreamChunk> {
-  logger.info(`Research agent stream: "${request.query.substring(0, 50)}..." verbose=${request.verbose} searchWeb=${request.searchWeb}`);
+  logger.info(`Research agent stream: "${request.query.substring(0, 50)}..." verbose=${request.verbose} searchWeb=${request.searchWeb} enableIntentTools=${request.enableIntentTools}`);
 
   // Set model config and notebook ID for tools to use
   setRequestModelConfig(request.modelConfig);
@@ -452,13 +472,17 @@ export async function* researchQueryStream(
         ?.map((msg: ChatMessage) => `${msg.role === 'user' ? 'User' : 'Assistant'}: ${msg.text}`)
         .join('\n') || '';
 
-    // Build system prompt with retrieval strategy (include web search if enabled)
+    // Build system prompt with retrieval strategy (include web search and intent tools if enabled)
     const systemPrompt = buildRetrievalSystemPrompt(request.notebookId, historyContext, {
       searchWeb: request.searchWeb,
+      enableIntentTools: request.enableIntentTools,
     });
 
     // Get appropriate tools based on options
-    const tools = getResearchTools({ searchWeb: request.searchWeb });
+    const tools = getResearchTools({
+      searchWeb: request.searchWeb,
+      enableIntentTools: request.enableIntentTools,
+    });
 
     const modelConfig = createModelConfig(selectModel('agent'));
     const toolCalls: { name: string; args: unknown; result: unknown }[] = [];
@@ -606,6 +630,29 @@ export async function* researchQueryStream(
               args: toolInput,
               result: tcResult,
             });
+
+            // Check if this is an intent tool call (content creation)
+            const intentToolNames = ['create_article_draft', 'create_post_draft', 'create_media_draft'];
+            if (intentToolNames.includes(tc.toolName)) {
+              // Emit tool_call event with the intent result
+              const intentResult = tcResult as Record<string, unknown>;
+              if (intentResult?.success && intentResult?.type) {
+                pushEvent({
+                  type: 'tool_call',
+                  tool: tc.toolName,
+                  status: `Created ${tc.toolName.replace('create_', '').replace('_', ' ')}`,
+                  intentResult: {
+                    type: intentResult.type as 'article_draft' | 'post_draft' | 'media_draft',
+                    title: intentResult.title as string | undefined,
+                    content: intentResult.content as string | undefined,
+                    caption: intentResult.caption as string | undefined,
+                    platform: intentResult.platform as string | undefined,
+                    prompt: intentResult.prompt as string | undefined,
+                  },
+                });
+              }
+              continue; // Skip source counting for intent tools
+            }
 
             // Count sources from this tool call
             const sourceCount = getSourceCount(tc.toolName, tcResult);
