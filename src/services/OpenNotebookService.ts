@@ -237,28 +237,51 @@ export class OpenNotebookService {
     if (rawResult.results && rawResult.results.length > 0) {
       const firstRaw = rawResult.results[0];
       logger.debug(`Raw API result fields: ${Object.keys(firstRaw).join(', ')}`);
-      logger.debug(`Raw result: id=${firstRaw.id}, title=${firstRaw.title}, relevance=${firstRaw.relevance}, hasContent=${!!firstRaw.content}, contentLen=${firstRaw.content?.length || 0}`);
+      logger.debug(`Raw result: id=${firstRaw.id}, type=${firstRaw.type}, title=${firstRaw.title}, relevance=${firstRaw.relevance}, score=${firstRaw.score}, hasContent=${!!firstRaw.content}, contentLen=${firstRaw.content?.length || 0}`);
     }
 
     // Transform raw API response to normalized format
-    const transformedResults: SearchResult[] = (rawResult.results || []).map((raw) => ({
-      id: raw.id,
-      // Content: use content field, or empty string if not provided
-      content: raw.content || '',
-      // Source name: prefer source_name, fall back to title
-      source_name: raw.source_name || raw.title || 'Unknown',
-      // Score: prefer score, fall back to relevance
-      score: raw.score ?? raw.relevance ?? 0,
-      metadata: raw.metadata,
-    }));
+    const transformedResults: SearchResult[] = (rawResult.results || []).map((raw) => {
+      // For source_insight types, the content might be in title or a different field
+      // If content is missing, use title as a fallback description
+      let content = raw.content || '';
+      if (!content && raw.title && raw.id.startsWith('source_insight:')) {
+        // For insights without content, indicate the source type
+        content = `[Insight from: ${raw.title}]`;
+      }
+
+      return {
+        id: raw.id,
+        content,
+        // Source name: prefer source_name, fall back to title
+        source_name: raw.source_name || raw.title || 'Unknown',
+        // Score: prefer score, fall back to relevance, default to small positive value for insights
+        score: raw.score ?? raw.relevance ?? (raw.id.startsWith('source_insight:') ? 0.1 : 0),
+        metadata: raw.metadata,
+      };
+    });
+
+    // Filter out results with no useful content (empty or just placeholder)
+    const usefulResults = transformedResults.filter((r) => {
+      // Keep if it has actual content (not just placeholder)
+      if (r.content && r.content.length > 50 && !r.content.startsWith('[Insight from:')) {
+        return true;
+      }
+      // Keep insights even without content for now (they might still be useful as references)
+      if (r.id.startsWith('source_insight:')) {
+        return true;
+      }
+      return r.content.length > 0;
+    });
 
     // Log transformation result
     if (transformedResults.length > 0) {
-      logger.debug(`Transformed result: source=${transformedResults[0].source_name}, score=${transformedResults[0].score}, contentLen=${transformedResults[0].content.length}`);
+      logger.debug(`Transformed ${transformedResults.length} results, ${usefulResults.length} with useful content`);
+      logger.debug(`First result: source=${transformedResults[0].source_name}, score=${transformedResults[0].score}, contentLen=${transformedResults[0].content.length}`);
     }
 
     return {
-      results: transformedResults,
+      results: usefulResults,
       total_count: rawResult.total_count,
       search_type: rawResult.search_type,
     };
@@ -460,14 +483,25 @@ export class OpenNotebookService {
   /**
    * Fetch content for search results that are missing content.
    * Only fetches for top N results to avoid excessive API calls.
+   * Skips special source types that can't be enriched via /api/sources/ endpoint.
    */
   static async enrichSearchResultsWithContent(
     results: SearchResult[],
     maxToEnrich: number = 5
   ): Promise<SearchResult[]> {
-    const resultsToEnrich = results.slice(0, maxToEnrich).filter((r) => !r.content || r.content.length === 0);
+    // Only enrich regular sources - skip source_insight, note, and other special types
+    const canBeEnriched = (id: string) => {
+      // Skip special types that can't be fetched via /api/sources/
+      const skipPrefixes = ['source_insight:', 'note:', 'chat:', 'insight:'];
+      return !skipPrefixes.some((prefix) => id.startsWith(prefix));
+    };
+
+    const resultsToEnrich = results
+      .slice(0, maxToEnrich)
+      .filter((r) => (!r.content || r.content.length === 0) && canBeEnriched(r.id));
 
     if (resultsToEnrich.length === 0) {
+      logger.debug('No enrichable results (all are special types or have content)');
       return results;
     }
 
@@ -476,7 +510,7 @@ export class OpenNotebookService {
     // Fetch content for results missing it
     const enrichmentPromises = resultsToEnrich.map(async (result) => {
       try {
-        // Extract source ID from result ID (format: "source:xyz" or just "xyz")
+        // Format source ID for API call (format: "source:xyz" or just "xyz")
         const sourceId = result.id.startsWith('source:') ? result.id : `source:${result.id}`;
         const source = await this.getSource(sourceId);
         return { id: result.id, content: source.content || '' };
