@@ -41,7 +41,6 @@ The research workflow is an agentic retrieval system that searches a knowledge b
 | `notebookId` | string | No | Knowledge base notebook ID (enables additional tools) |
 | `history` | array | No | Previous conversation messages for context |
 | `searchWeb` | boolean | No | Enable web search (default: false) |
-| `enableIntentTools` | boolean | No | Enable content creation tools (default: false) |
 | `maxSteps` | number | No | Maximum agent steps (default: 10) |
 | `verbose` | boolean | No | Stream verbose tool execution details |
 
@@ -290,86 +289,6 @@ Retrieve full notebook context for comprehensive overview.
 
 ---
 
-## Content Creation Tools (Optional)
-
-When `enableIntentTools` is true, these tools become available for generating content.
-
-### Create Article Draft
-
-**Tool:** `create_article_draft`
-
-**Trigger:** User asks to "create an article", "write a blog post", etc.
-
-**Input:**
-```json
-{
-  "title": "Article Title",
-  "content": "<HTML content of the article>"
-}
-```
-
-**Output:**
-```json
-{
-  "success": true,
-  "type": "article_draft",
-  "title": "Article Title",
-  "content": "<HTML content>"
-}
-```
-
----
-
-### Create Post Draft
-
-**Tool:** `create_post_draft`
-
-**Trigger:** User asks to "create a social media post", "draft an Instagram post", etc.
-
-**Input:**
-```json
-{
-  "caption": "Post caption with emojis and hashtags",
-  "platform": "Instagram"
-}
-```
-
-**Output:**
-```json
-{
-  "success": true,
-  "type": "post_draft",
-  "caption": "...",
-  "platform": "Instagram"
-}
-```
-
----
-
-### Create Media Draft
-
-**Tool:** `create_media_draft`
-
-**Trigger:** User asks to "create an image", "generate a visual", etc.
-
-**Input:**
-```json
-{
-  "prompt": "Detailed image generation prompt"
-}
-```
-
-**Output:**
-```json
-{
-  "success": true,
-  "type": "media_draft",
-  "prompt": "..."
-}
-```
-
----
-
 ## Streaming Events
 
 The workflow streams events to provide real-time progress updates:
@@ -379,7 +298,6 @@ The workflow streams events to provide real-time progress updates:
 | `status` | Progress message (e.g., "Searching knowledge base...") |
 | `tool_start` | Tool execution started |
 | `tool_result` | Tool execution completed (verbose mode) |
-| `tool_call` | Intent tool called (content creation) |
 | `delta` | Incremental text content |
 | `sources` | Source references found |
 | `done` | Workflow completed |
@@ -397,8 +315,7 @@ The workflow streams events to provide real-time progress updates:
   "sources": [],
   "response": "",
   "steps": 0,
-  "error": "",
-  "intentResult": {}
+  "error": ""
 }
 ```
 
