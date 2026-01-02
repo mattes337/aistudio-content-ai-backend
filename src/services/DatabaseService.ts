@@ -28,6 +28,13 @@ import type {
   ChatSessionChannel
 } from '../models/Chat';
 
+// Helper to sanitize strings for PostgreSQL by removing null bytes (0x00)
+// which are invalid in PostgreSQL text fields
+function sanitizeForPostgres(value: string | null | undefined): string | null {
+  if (value == null) return null;
+  return value.replace(/\x00/g, '');
+}
+
 export class DatabaseService {
   // Channel operations
   static async createChannel(channelData: CreateChannelRequest): Promise<Channel> {
@@ -547,11 +554,11 @@ export class DatabaseService {
       RETURNING *
     `;
     const values = [
-      sourceData.name,
-      sourceData.type,
-      sourceData.source_origin,
+      sanitizeForPostgres(sourceData.name),
+      sanitizeForPostgres(sourceData.type),
+      sanitizeForPostgres(sourceData.source_origin),
       'pending',
-      sourceData.folder_path || null,
+      sanitizeForPostgres(sourceData.folder_path),
       JSON.stringify(sourceData.data || {})
     ];
 
@@ -671,23 +678,23 @@ export class DatabaseService {
 
     if (sourceData.name !== undefined) {
       setParts.push(`name = $${paramCount++}`);
-      values.push(sourceData.name);
+      values.push(sanitizeForPostgres(sourceData.name));
     }
     if (sourceData.type !== undefined) {
       setParts.push(`type = $${paramCount++}`);
-      values.push(sourceData.type);
+      values.push(sanitizeForPostgres(sourceData.type));
     }
     if (sourceData.source_origin !== undefined) {
       setParts.push(`source_origin = $${paramCount++}`);
-      values.push(sourceData.source_origin);
+      values.push(sanitizeForPostgres(sourceData.source_origin));
     }
     if (sourceData.file_path !== undefined) {
       setParts.push(`file_path = $${paramCount++}`);
-      values.push(sourceData.file_path);
+      values.push(sanitizeForPostgres(sourceData.file_path));
     }
     if (sourceData.folder_path !== undefined) {
       setParts.push(`folder_path = $${paramCount++}`);
-      values.push(sourceData.folder_path || null);
+      values.push(sanitizeForPostgres(sourceData.folder_path));
     }
     if (sourceData.data !== undefined) {
       setParts.push(`data = $${paramCount++}`);
