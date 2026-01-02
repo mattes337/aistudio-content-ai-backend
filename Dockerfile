@@ -4,6 +4,12 @@ FROM oven/bun:1-alpine
 # Set working directory
 WORKDIR /app
 
+# Install build dependencies for native modules (sharp)
+RUN apk add --no-cache \
+    build-base \
+    python3 \
+    vips-dev
+
 # Copy package files
 COPY package.json bun.lock ./
 

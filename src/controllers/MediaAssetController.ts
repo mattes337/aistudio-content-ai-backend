@@ -3,6 +3,7 @@ import { DatabaseService } from '../services/DatabaseService';
 import type { CreateMediaAssetRequest, UpdateMediaAssetRequest, MediaAssetQueryOptions, MediaType, FileStatus } from '../models/MediaAsset';
 import logger from '../utils/logger';
 import { getFileUrl } from '../utils/fileUpload';
+import { createThumbnail, getThumbnailUrl } from '../utils/thumbnail';
 
 // UUID validation regex
 const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
@@ -22,10 +23,11 @@ export class MediaAssetController {
 
       const result = await DatabaseService.getMediaAssets(options);
 
-      // Add URL to each asset
+      // Add URL and thumbnail URL to each asset
       const dataWithUrl = result.data.map(asset => ({
         ...asset,
-        url: getFileUrl(asset.file_path)
+        url: getFileUrl(asset.file_path),
+        thumbnail_url: getThumbnailUrl(asset.file_path)
       }));
 
       res.json({
@@ -83,6 +85,9 @@ export class MediaAssetController {
         return res.status(400).json({ message: 'Title and type are required' });
       }
 
+      // Create thumbnail for images
+      const thumbnailFilename = await createThumbnail(req.file.filename);
+
       const assetData: CreateMediaAssetRequest = {
         title,
         type,
@@ -90,14 +95,16 @@ export class MediaAssetController {
         data: {
           originalName: req.file.originalname,
           mimeType: req.file.mimetype,
-          size: req.file.size
+          size: req.file.size,
+          thumbnailPath: thumbnailFilename
         }
       };
 
       const asset = await DatabaseService.createMediaAsset(assetData);
       const assetWithUrl = {
         ...asset,
-        url: getFileUrl(asset.file_path)
+        url: getFileUrl(asset.file_path),
+        thumbnail_url: getThumbnailUrl(asset.file_path)
       };
 
       res.status(201).json(assetWithUrl);

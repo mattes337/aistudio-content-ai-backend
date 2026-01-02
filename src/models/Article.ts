@@ -6,6 +6,7 @@ export interface Article {
   status: ArticleStatus;
   publish_date?: Date;
   channel_id: string;
+  feature_image_id?: string;
   data: Record<string, any>;
   created_at: Date;
   updated_at: Date;
@@ -24,6 +25,8 @@ export interface ArticleListItem {
   publish_date?: Date;
   channel_id: string;
   channel_name?: string;
+  feature_image_url?: string;
+  feature_image_thumbnail_url?: string;
   created_at: Date;
   updated_at: Date;
 }
@@ -48,6 +51,7 @@ export interface CreateArticleRequest {
   status?: ArticleStatus;
   publish_date?: Date;
   channel_id: string;
+  feature_image_id?: string;
   data?: Record<string, any>;
 }
 

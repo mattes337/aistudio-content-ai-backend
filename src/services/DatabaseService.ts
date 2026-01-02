@@ -462,8 +462,8 @@ export class DatabaseService {
     const status = articleData.publish_date ? articleData.status || 'draft' : 'draft';
 
     const query = `
-      INSERT INTO articles (title, status, publish_date, channel_id, data)
-      VALUES ($1, $2, $3, $4, $5)
+      INSERT INTO articles (title, status, publish_date, channel_id, feature_image_id, data)
+      VALUES ($1, $2, $3, $4, $5, $6)
       RETURNING *
     `;
     const values = [
@@ -471,6 +471,7 @@ export class DatabaseService {
       status,
       articleData.publish_date || null,
       articleData.channel_id,
+      articleData.feature_image_id || null,
       JSON.stringify(articleData.data || {})
     ];
 
@@ -531,9 +532,12 @@ export class DatabaseService {
     // Data query with pagination - return partial data (no 'data' field)
     const dataQuery = `
       SELECT a.id, a.title, a.status, a.publish_date, a.channel_id,
-             a.created_at, a.updated_at, c.name as channel_name
+             a.created_at, a.updated_at, c.name as channel_name,
+             CASE WHEN ma.file_path IS NOT NULL THEN CONCAT('/api/files/', ma.file_path) END as feature_image_url,
+             CASE WHEN ma.file_path IS NOT NULL THEN CONCAT('/api/files/', REGEXP_REPLACE(ma.file_path, '(\\.[^.]+)$', '_thumb\\1')) END as feature_image_thumbnail_url
       FROM articles a
       JOIN channels c ON a.channel_id = c.id
+      LEFT JOIN media_assets ma ON a.feature_image_id = ma.id
       ${whereClause}
       ORDER BY a.${safeSortBy} ${safeSortOrder}
       LIMIT $${paramCount++} OFFSET $${paramCount++}
@@ -588,6 +592,11 @@ export class DatabaseService {
     if (articleData.channel_id !== undefined) {
       setParts.push(`channel_id = $${paramCount++}`);
       values.push(articleData.channel_id);
+    }
+
+    if (articleData.feature_image_id !== undefined) {
+      setParts.push(`feature_image_id = $${paramCount++}`);
+      values.push(articleData.feature_image_id);
     }
 
     if (articleData.data !== undefined) {
@@ -1263,8 +1272,8 @@ export class DatabaseService {
     const status = newsletterData.publish_date ? newsletterData.status || 'draft' : 'draft';
 
     const query = `
-      INSERT INTO newsletters (subject, status, publish_date, channel_id, data)
-      VALUES ($1, $2, $3, $4, $5)
+      INSERT INTO newsletters (subject, status, publish_date, channel_id, feature_image_id, data)
+      VALUES ($1, $2, $3, $4, $5, $6)
       RETURNING *
     `;
     const values = [
@@ -1272,6 +1281,7 @@ export class DatabaseService {
       status,
       newsletterData.publish_date || null,
       newsletterData.channel_id,
+      newsletterData.feature_image_id || null,
       JSON.stringify(newsletterData.data || {})
     ];
 
@@ -1332,9 +1342,12 @@ export class DatabaseService {
     // Data query with pagination - return partial data (no 'data' field)
     const dataQuery = `
       SELECT n.id, n.subject, n.status, n.publish_date, n.channel_id,
-             n.created_at, n.updated_at, c.name as channel_name
+             n.created_at, n.updated_at, c.name as channel_name,
+             CASE WHEN ma.file_path IS NOT NULL THEN CONCAT('/api/files/', ma.file_path) END as feature_image_url,
+             CASE WHEN ma.file_path IS NOT NULL THEN CONCAT('/api/files/', REGEXP_REPLACE(ma.file_path, '(\\.[^.]+)$', '_thumb\\1')) END as feature_image_thumbnail_url
       FROM newsletters n
       LEFT JOIN channels c ON n.channel_id = c.id
+      LEFT JOIN media_assets ma ON n.feature_image_id = ma.id
       ${whereClause}
       ORDER BY n.${safeSortBy} ${safeSortOrder}
       LIMIT $${paramCount++} OFFSET $${paramCount++}
@@ -1383,6 +1396,11 @@ export class DatabaseService {
     if (newsletterData.channel_id !== undefined) {
       setParts.push(`channel_id = $${paramCount++}`);
       values.push(newsletterData.channel_id);
+    }
+
+    if (newsletterData.feature_image_id !== undefined) {
+      setParts.push(`feature_image_id = $${paramCount++}`);
+      values.push(newsletterData.feature_image_id);
     }
 
     if (newsletterData.data !== undefined) {

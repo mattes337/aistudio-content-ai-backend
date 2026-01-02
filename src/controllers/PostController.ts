@@ -3,6 +3,7 @@ import { DatabaseService } from '../services/DatabaseService';
 import type { CreatePostRequest, UpdatePostRequest, PostQueryOptions, PostStatus } from '../models/Post';
 import logger from '../utils/logger';
 import { getFileUrl } from '../utils/fileUpload';
+import { createThumbnail, getThumbnailUrl } from '../utils/thumbnail';
 
 // UUID validation regex
 const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
@@ -22,7 +23,17 @@ export class PostController {
       };
 
       const result = await DatabaseService.getPosts(options);
-      res.json(result);
+
+      // Add thumbnail URLs to posts with preview images
+      const dataWithThumbnails = result.data.map(post => ({
+        ...post,
+        preview_thumbnail_url: getThumbnailUrl(post.preview_file_path)
+      }));
+
+      res.json({
+        ...result,
+        data: dataWithThumbnails
+      });
     } catch (error) {
       logger.error('Error fetching posts:', error);
       res.status(500).json({ message: 'Internal server error' });
@@ -128,6 +139,9 @@ export class PostController {
         return res.status(404).json({ message: 'Post not found' });
       }
 
+      // Create thumbnail for preview image
+      const thumbnailFilename = await createThumbnail(req.file.filename);
+
       const updateData: UpdatePostRequest = {
         id: postId,
         preview_file_path: req.file.filename,
@@ -136,7 +150,8 @@ export class PostController {
           previewImage: {
             originalName: req.file.originalname,
             mimeType: req.file.mimetype,
-            size: req.file.size
+            size: req.file.size,
+            thumbnailPath: thumbnailFilename
           }
         }
       };
@@ -149,7 +164,8 @@ export class PostController {
 
       const postWithPreview = {
         ...updatedPost,
-        previewImageUrl: getFileUrl(updatedPost.preview_file_path)
+        previewImageUrl: getFileUrl(updatedPost.preview_file_path),
+        previewThumbnailUrl: getThumbnailUrl(updatedPost.preview_file_path)
       };
 
       res.json(postWithPreview);

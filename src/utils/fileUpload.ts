@@ -1,6 +1,7 @@
 import multer from 'multer';
 import path from 'path';
 import fs from 'fs';
+import { deleteThumbnail } from './thumbnail';
 
 // Ensure uploads directory exists
 const uploadsDir = path.join(__dirname, '../../uploads');
@@ -77,12 +78,14 @@ export const getFileUrl = (filename: string): string => {
   return `/api/files/${filename}`;
 };
 
-// Helper function to delete uploaded files
+// Helper function to delete uploaded files (also deletes associated thumbnail)
 export const deleteFile = (filename: string): boolean => {
   try {
     const filePath = path.join(uploadsDir, filename);
     if (fs.existsSync(filePath)) {
       fs.unlinkSync(filePath);
+      // Also delete the thumbnail if it exists
+      deleteThumbnail(filename);
       return true;
     }
     return false;
