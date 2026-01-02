@@ -383,6 +383,8 @@ export class AIController {
         ? { strategyModel, answerModel, finalAnswerModel }
         : undefined;
 
+      // AIService uses the workflow registry to route to the appropriate workflow
+      // (webhook if configured, otherwise builtin)
       const result = await AIService.researchQuery({
         query,
         channelId,
@@ -421,7 +423,8 @@ export class AIController {
       res.setHeader('Connection', 'keep-alive');
       res.setHeader('X-Accel-Buffering', 'no'); // Disable nginx buffering
 
-      // Stream the research response
+      // AIService uses the workflow registry to route to the appropriate workflow
+      // (webhook if configured, otherwise builtin)
       for await (const chunk of AIService.researchQueryStream({
         query,
         channelId,

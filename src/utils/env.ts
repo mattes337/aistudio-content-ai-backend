@@ -18,6 +18,8 @@ export interface AppConfig {
   logLevel: string;
   fileCleanupDelayHours: number;
   fileCleanupIntervalMinutes: number;
+  /** Optional webhook URL for external research processing */
+  researchWebhookUrl: string;
 }
 
 export const loadEnvConfig = (): AppConfig => {
@@ -40,5 +42,6 @@ export const loadEnvConfig = (): AppConfig => {
     logLevel: process.env.LOG_LEVEL || 'info',
     fileCleanupDelayHours: parseInt(process.env.FILE_CLEANUP_DELAY_HOURS || '24', 10),
     fileCleanupIntervalMinutes: parseInt(process.env.FILE_CLEANUP_INTERVAL_MINUTES || '60', 10),
+    researchWebhookUrl: process.env.RESEARCH_WEBHOOK_URL || '',
   };
 };

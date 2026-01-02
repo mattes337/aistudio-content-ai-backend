@@ -1,8 +1,8 @@
 /**
  * AI Service using Vercel AI SDK with Gemini 3
  *
- * This service consolidates AIService.ts and GeminiService.ts
- * and integrates OpenNotebookService as a RAG tool.
+ * This service provides all AI functionality through a workflow-based architecture.
+ * Workflows are registered and can be swapped/extended without changing the API.
  */
 
 import { generateText } from 'ai';
@@ -14,30 +14,57 @@ import { google, MODELS } from './models';
 export * from './types';
 export { MODELS, selectModel, createModelConfig } from './models';
 
-// Import generators
-import { refineContent, generateArticleContent } from './generators/content';
+// Export workflow system
+export {
+  WorkflowRegistry,
+  getResearchWorkflow,
+  getMetadataWorkflow,
+  getContentWorkflow,
+  getImageWorkflow,
+  getBulkWorkflow,
+  getTaskWorkflow,
+  initializeWorkflows,
+} from './workflows';
 
+// Import workflow getters for use in service
 import {
-  generateTitle,
-  generateSubject,
-  generateMetadata,
-  generateExcerpt,
-  generatePreviewText,
-  generatePostDetails,
-  generateArticleMetadata,
-  generateBulkContent,
-  inferMetadata,
-} from './generators/metadata';
+  getResearchWorkflow,
+  getMetadataWorkflow,
+  getContentWorkflow,
+  getImageWorkflow,
+  getBulkWorkflow,
+  getTaskWorkflow,
+} from './workflows';
 
-import { generateImage, editImage } from './generators/image';
+// Import types for method signatures
+import type {
+  AgentQuery,
+  AgentResponse,
+  ResearchStreamOptions,
+  ResearchStreamChunk,
+  RefineContentResult,
+  TitleResult,
+  SubjectResult,
+  MetadataResult,
+  ExcerptResult,
+  PreviewTextResult,
+  PostDetailsResult,
+  ImageGenerationResult,
+  ImageEditResult,
+  BulkContentResult,
+  ContentType,
+  ChatMessage,
+  StreamChunk,
+  ArticleMetadata,
+} from './types';
 
-// Import agent
-import { researchQuery, researchQueryStream, executeTask } from './agent';
+// Import workflow input types
+import type {
+  ImageType,
+  ImageBounds,
+} from './workflows/types';
 
-// Import streaming
-import { refineContentStream, generateArticleContentStream } from './streaming';
-
-// Import tools
+// Import tools (for backwards compatibility export)
 export { agentTools, researchTools } from './tools';
 
 const config = loadEnvConfig();
@@ -50,38 +77,207 @@ if (!config.geminiApiKey) {
 /**
  * AIService - Static service class providing all AI functionality
  *
- * Replaces: AIService.ts, GeminiService.ts
- * Integrates: OpenNotebookService as RAG tool
+ * Uses the workflow registry to delegate to appropriate workflow implementations.
+ * Maintains backwards compatibility with the original API.
  */
 export class AIService {
   // ============== Content Generation ==============
 
-  static refineContent = refineContent;
-  static refineContentStream = refineContentStream;
-  static generateArticleContent = generateArticleContent;
-  static generateArticleContentStream = generateArticleContentStream;
+  static async refineContent(
+    currentContent: string,
+    instruction: string,
+    type: ContentType,
+    history: ChatMessage[] = []
+  ): Promise<RefineContentResult> {
+    const workflow = getContentWorkflow();
+    if (!workflow) throw new Error('No content workflow available');
+    return workflow.execute({
+      contentType: type,
+      instruction,
+      currentContent,
+      history,
+    });
+  }
+
+  static async *refineContentStream(
+    currentContent: string,
+    instruction: string,
+    type: ContentType,
+    history: ChatMessage[] = []
+  ): AsyncGenerator<StreamChunk> {
+    const workflow = getContentWorkflow();
+    if (!workflow) throw new Error('No content workflow available');
+    yield* workflow.executeStream({
+      contentType: type,
+      instruction,
+      currentContent,
+      history,
+    });
+  }
+
+  static async generateArticleContent(prompt: string, currentContent?: string): Promise<string> {
+    const workflow = getContentWorkflow();
+    if (!workflow) throw new Error('No content workflow available');
+    const result = await workflow.execute({
+      contentType: 'article',
+      instruction: prompt,
+      currentContent,
+    });
+    return result.content;
+  }
+
+  static async *generateArticleContentStream(
+    prompt: string,
+    currentContent?: string
+  ): AsyncGenerator<string> {
+    const workflow = getContentWorkflow();
+    if (!workflow) throw new Error('No content workflow available');
+    for await (const chunk of workflow.executeStream({
+      contentType: 'article',
+      instruction: prompt,
+      currentContent,
+    })) {
+      if (chunk.type === 'delta' && chunk.content) {
+        yield chunk.content;
+      }
+    }
+  }
 
   // ============== Metadata Generation ==============
 
-  static generateTitle = generateTitle;
-  static generateSubject = generateSubject;
-  static generateMetadata = generateMetadata;
-  static generateExcerpt = generateExcerpt;
-  static generatePreviewText = generatePreviewText;
-  static generatePostDetails = generatePostDetails;
-  static generateBulkContent = generateBulkContent;
-  static inferMetadata = inferMetadata;
+  static async generateTitle(content: string): Promise<TitleResult> {
+    const workflow = getMetadataWorkflow();
+    if (!workflow) throw new Error('No metadata workflow available');
+    const results = await workflow.generate(['title'], { content, contentType: 'article' });
+    return results.title;
+  }
+
+  static async generateSubject(content: string): Promise<SubjectResult> {
+    const workflow = getMetadataWorkflow();
+    if (!workflow) throw new Error('No metadata workflow available');
+    const results = await workflow.generate(['subject'], { content, contentType: 'newsletter' });
+    return results.subject;
+  }
+
+  static async generateMetadata(content: string, title: string): Promise<MetadataResult> {
+    const workflow = getMetadataWorkflow();
+    if (!workflow) throw new Error('No metadata workflow available');
+    const results = await workflow.generate(['seoMetadata'], { content, contentType: 'article', title });
+    return results.seoMetadata;
+  }
+
+  static async generateExcerpt(content: string): Promise<ExcerptResult> {
+    const workflow = getMetadataWorkflow();
+    if (!workflow) throw new Error('No metadata workflow available');
+    const results = await workflow.generate(['excerpt'], { content, contentType: 'article' });
+    return results.excerpt;
+  }
+
+  static async generatePreviewText(content: string): Promise<PreviewTextResult> {
+    const workflow = getMetadataWorkflow();
+    if (!workflow) throw new Error('No metadata workflow available');
+    const results = await workflow.generate(['previewText'], { content, contentType: 'newsletter' });
+    return results.previewText;
+  }
+
+  static async generatePostDetails(prompt: string, currentCaption: string): Promise<PostDetailsResult> {
+    const workflow = getMetadataWorkflow();
+    if (!workflow) throw new Error('No metadata workflow available');
+    const results = await workflow.generate(['postDetails'], {
+      content: currentCaption,
+      contentType: 'post',
+      prompt,
+      currentCaption,
+    });
+    return results.postDetails;
+  }
+
+  static async inferMetadata(content: string, type: ContentType): Promise<unknown> {
+    const workflow = getMetadataWorkflow();
+    if (!workflow) throw new Error('No metadata workflow available');
+    // Infer all relevant metadata based on content type
+    switch (type) {
+      case 'article':
+        return workflow.generate(['title', 'seoMetadata', 'excerpt'], { content, contentType: type });
+      case 'newsletter':
+        return workflow.generate(['subject', 'previewText'], { content, contentType: type });
+      case 'post':
+        return workflow.generate(['postDetails'], { content, contentType: type, prompt: 'Generate post details' });
+      default:
+        return workflow.generate(['title', 'excerpt'], { content, contentType: type });
+    }
+  }
+
+  static async generateBulkContent(
+    articleCount: number,
+    postCount: number,
+    knowledgeSummary: string
+  ): Promise<BulkContentResult> {
+    const workflow = getBulkWorkflow();
+    if (!workflow) throw new Error('No bulk workflow available');
+    return workflow.generateBulkContent(articleCount, postCount, knowledgeSummary);
+  }
 
   // ============== Image Generation ==============
 
-  static generateImage = generateImage;
-  static editImage = editImage;
+  static async generateImage(
+    prompt: string,
+    options?: {
+      imageType?: ImageType;
+      bounds?: ImageBounds;
+      aspectRatio?: string; // Legacy support
+    }
+  ): Promise<ImageGenerationResult> {
+    const workflow = getImageWorkflow();
+    if (!workflow) throw new Error('No image workflow available');
+    return workflow.generate({
+      prompt,
+      imageType: options?.imageType,
+      bounds: options?.bounds ?? (options?.aspectRatio ? { aspectRatio: options.aspectRatio } : undefined),
+    });
+  }
+
+  static async editImage(
+    base64ImageData: string,
+    mimeType: string,
+    prompt: string,
+    options?: {
+      imageType?: ImageType;
+      bounds?: ImageBounds;
+    }
+  ): Promise<ImageEditResult> {
+    const workflow = getImageWorkflow();
+    if (!workflow) throw new Error('No image workflow available');
+    return workflow.edit({
+      base64ImageData,
+      mimeType,
+      prompt,
+      imageType: options?.imageType,
+      bounds: options?.bounds,
+    });
+  }
 
   // ============== Agent/Research ==============
 
-  static researchQuery = researchQuery;
-  static researchQueryStream = researchQueryStream;
-  static executeTask = executeTask;
+  static async researchQuery(request: AgentQuery): Promise<AgentResponse> {
+    const workflow = getResearchWorkflow();
+    if (!workflow) throw new Error('No research workflow available');
+    return workflow.execute(request);
+  }
+
+  static async *researchQueryStream(
+    request: ResearchStreamOptions
+  ): AsyncGenerator<ResearchStreamChunk> {
+    const workflow = getResearchWorkflow();
+    if (!workflow) throw new Error('No research workflow available');
+    yield* workflow.executeStream(request);
+  }
+
+  static async executeTask(task: { type: string; params: Record<string, unknown> }): Promise<Record<string, unknown>> {
+    const workflow = getTaskWorkflow();
+    if (!workflow) throw new Error('No task workflow available');
+    return workflow.executeTask(task.type as any, task.params);
+  }
 
   // ============== Legacy Compatibility Methods ==============
 
@@ -89,14 +285,18 @@ export class AIService {
    * Legacy method for backwards compatibility with AIService.generateArticleTitle
    */
   static async generateArticleTitle(content: string): Promise<string> {
-    const result = await generateTitle(content);
+    const result = await AIService.generateTitle(content);
     return result.title;
   }
 
   /**
    * Legacy method for backwards compatibility with AIService.generateArticleMetadata
    */
-  static generateArticleMetadata = generateArticleMetadata;
+  static async generateArticleMetadata(content: string): Promise<ArticleMetadata> {
+    // Import legacy function for this specific case
+    const { generateArticleMetadata } = await import('./generators/metadata');
+    return generateArticleMetadata(content);
+  }
 
   /**
    * Legacy method for AIService.generatePostDetails compatibility
@@ -106,7 +306,7 @@ export class AIService {
     prompt: string,
     currentCaption?: string
   ): Promise<{ caption: string; altText: string; tags: string[] }> {
-    const result = await generatePostDetails(prompt, currentCaption || '');
+    const result = await AIService.generatePostDetails(prompt, currentCaption || '');
     return {
       caption: result.content,
       altText: result.altText,
