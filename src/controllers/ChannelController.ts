@@ -1,13 +1,23 @@
-import { Request, Response } from 'express';
+import type { Request, Response } from 'express';
 import { DatabaseService } from '../services/DatabaseService';
-import { CreateChannelRequest, UpdateChannelRequest } from '../models/Channel';
+import type { CreateChannelRequest, UpdateChannelRequest, ChannelQueryOptions, ChannelType, PlatformApi } from '../models/Channel';
 import logger from '../utils/logger';
 
 export class ChannelController {
   static async getChannels(req: Request, res: Response) {
     try {
-      const channels = await DatabaseService.getChannels();
-      res.json(channels);
+      const options: ChannelQueryOptions = {
+        search: req.query.search as string | undefined,
+        type: req.query.type as ChannelType | undefined,
+        platform_api: req.query.platform_api as PlatformApi | undefined,
+        sort_by: req.query.sort_by as ChannelQueryOptions['sort_by'] | undefined,
+        sort_order: req.query.sort_order as 'asc' | 'desc' | undefined,
+        limit: req.query.limit ? parseInt(req.query.limit as string, 10) : undefined,
+        offset: req.query.offset ? parseInt(req.query.offset as string, 10) : undefined
+      };
+
+      const result = await DatabaseService.getChannels(options);
+      res.json(result);
     } catch (error) {
       logger.error('Error fetching channels:', error);
       res.status(500).json({ message: 'Internal server error' });

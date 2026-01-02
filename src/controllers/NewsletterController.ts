@@ -1,6 +1,6 @@
-import { Request, Response } from 'express';
+import type { Request, Response } from 'express';
 import { DatabaseService } from '../services/DatabaseService';
-import { CreateNewsletterRequest, UpdateNewsletterRequest } from '../models/Newsletter';
+import type { CreateNewsletterRequest, UpdateNewsletterRequest, NewsletterQueryOptions, NewsletterStatus } from '../models/Newsletter';
 import logger from '../utils/logger';
 
 export class NewsletterController {
@@ -141,8 +141,18 @@ export class NewsletterController {
 
   static async getNewsletters(req: Request, res: Response) {
     try {
-      const newsletters = await DatabaseService.getNewsletters();
-      res.json(newsletters);
+      const options: NewsletterQueryOptions = {
+        search: req.query.search as string | undefined,
+        status: req.query.status as NewsletterStatus | undefined,
+        channel_id: req.query.channel_id as string | undefined,
+        sort_by: req.query.sort_by as NewsletterQueryOptions['sort_by'] | undefined,
+        sort_order: req.query.sort_order as 'asc' | 'desc' | undefined,
+        limit: req.query.limit ? parseInt(req.query.limit as string, 10) : undefined,
+        offset: req.query.offset ? parseInt(req.query.offset as string, 10) : undefined
+      };
+
+      const result = await DatabaseService.getNewsletters(options);
+      res.json(result);
     } catch (error) {
       logger.error('Error fetching newsletters:', error);
       res.status(500).json({ message: 'Internal server error' });

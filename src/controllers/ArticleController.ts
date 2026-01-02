@@ -1,14 +1,23 @@
-import { Request, Response } from 'express';
+import type { Request, Response } from 'express';
 import { DatabaseService } from '../services/DatabaseService';
-import { CreateArticleRequest, UpdateArticleRequest } from '../models/Article';
+import type { CreateArticleRequest, UpdateArticleRequest, ArticleQueryOptions, ArticleStatus } from '../models/Article';
 import logger from '../utils/logger';
 
 export class ArticleController {
   static async getArticles(req: Request, res: Response) {
     try {
-      const { status } = req.query;
-      const articles = await DatabaseService.getArticles(status as string);
-      res.json(articles);
+      const options: ArticleQueryOptions = {
+        search: req.query.search as string | undefined,
+        status: req.query.status as ArticleStatus | undefined,
+        channel_id: req.query.channel_id as string | undefined,
+        sort_by: req.query.sort_by as ArticleQueryOptions['sort_by'] | undefined,
+        sort_order: req.query.sort_order as 'asc' | 'desc' | undefined,
+        limit: req.query.limit ? parseInt(req.query.limit as string, 10) : undefined,
+        offset: req.query.offset ? parseInt(req.query.offset as string, 10) : undefined
+      };
+
+      const result = await DatabaseService.getArticles(options);
+      res.json(result);
     } catch (error) {
       logger.error('Error fetching articles:', error);
       res.status(500).json({ message: 'Internal server error' });

@@ -1,8 +1,9 @@
 import { pool } from '../config/database';
-import type { Channel, CreateChannelRequest, UpdateChannelRequest } from '../models/Channel';
-import type { MediaAsset, CreateMediaAssetRequest, UpdateMediaAssetRequest } from '../models/MediaAsset';
-import type { Article, CreateArticleRequest, UpdateArticleRequest } from '../models/Article';
-import type { Post, CreatePostRequest, UpdatePostRequest } from '../models/Post';
+import type { Channel, CreateChannelRequest, UpdateChannelRequest, ChannelQueryOptions, PaginatedChannels, ChannelType, PlatformApi, ChannelListItem } from '../models/Channel';
+import type { MediaAsset, CreateMediaAssetRequest, UpdateMediaAssetRequest, MediaAssetQueryOptions, PaginatedMediaAssets, MediaType, MediaAssetListItem } from '../models/MediaAsset';
+import type { FileStatus } from '../models/MediaAsset';
+import type { Article, CreateArticleRequest, UpdateArticleRequest, ArticleQueryOptions, PaginatedArticles, ArticleStatus, ArticleListItem } from '../models/Article';
+import type { Post, CreatePostRequest, UpdatePostRequest, PostQueryOptions, PaginatedPosts, PostStatus, PostListItem } from '../models/Post';
 import type {
   KnowledgeSource,
   KnowledgeChunk,
@@ -16,8 +17,8 @@ import type {
   PaginatedKnowledgeSourceLogs
 } from '../models/KnowledgeSource';
 import { deleteFile } from '../utils/fileUpload';
-import type { CreateRecipientRequest, UpdateRecipientRequest } from '../models/Recipient';
-import type { CreateNewsletterRequest, UpdateNewsletterRequest } from '../models/Newsletter';
+import type { CreateRecipientRequest, UpdateRecipientRequest, RecipientQueryOptions, PaginatedRecipients, RecipientStatus, RecipientListItem, Recipient } from '../models/Recipient';
+import type { CreateNewsletterRequest, UpdateNewsletterRequest, NewsletterQueryOptions, PaginatedNewsletters, NewsletterStatus, NewsletterListItem, Newsletter } from '../models/Newsletter';
 import type {
   ChatSession,
   ChatMessage,
@@ -25,7 +26,13 @@ import type {
   CreateChatSessionRequest,
   UpdateChatSessionRequest,
   CreateChatMessageRequest,
-  ChatSessionChannel
+  ChatSessionChannel,
+  ChatSessionQueryOptions,
+  ChatMessageQueryOptions,
+  PaginatedChatSessions,
+  PaginatedChatMessages,
+  ChatSessionListItem,
+  ChatMessageListItem
 } from '../models/Chat';
 
 // Helper to sanitize strings for PostgreSQL by removing null bytes (0x00)
@@ -63,7 +70,81 @@ export class DatabaseService {
     return result.rows[0];
   }
 
-  static async getChannels(): Promise<Channel[]> {
+  static async getChannels(options: ChannelQueryOptions = {}): Promise<PaginatedChannels> {
+    const {
+      search,
+      type,
+      platform_api,
+      sort_by = 'created_at',
+      sort_order = 'desc',
+      limit: requestedLimit = 50,
+      offset = 0
+    } = options;
+
+    // Enforce max limit of 100
+    const limit = Math.min(Math.max(1, requestedLimit), 100);
+
+    // Validate sort_by to prevent SQL injection
+    const allowedSortFields = ['name', 'type', 'platform_api', 'created_at', 'updated_at'];
+    const safeSortBy = allowedSortFields.includes(sort_by) ? sort_by : 'created_at';
+    const safeSortOrder = sort_order === 'asc' ? 'ASC' : 'DESC';
+
+    const values: any[] = [];
+    const conditions: string[] = [];
+    let paramCount = 1;
+
+    // Build WHERE conditions
+    if (search) {
+      conditions.push(`(name ILIKE $${paramCount} OR url ILIKE $${paramCount})`);
+      values.push(`%${search}%`);
+      paramCount++;
+    }
+
+    if (type) {
+      conditions.push(`type = $${paramCount++}`);
+      values.push(type);
+    }
+
+    if (platform_api) {
+      conditions.push(`platform_api = $${paramCount++}`);
+      values.push(platform_api);
+    }
+
+    const whereClause = conditions.length > 0 ? `WHERE ${conditions.join(' AND ')}` : '';
+
+    // Count query for total
+    const countQuery = `
+      SELECT COUNT(*) as total
+      FROM channels
+      ${whereClause}
+    `;
+    const countResult = await pool.query(countQuery, values.slice(0, paramCount - 1));
+    const total = parseInt(countResult.rows[0].total, 10);
+
+    // Data query with pagination - return partial data (no credentials or data fields)
+    const dataQuery = `
+      SELECT id, name, url, type, platform_api, created_at, updated_at
+      FROM channels
+      ${whereClause}
+      ORDER BY ${safeSortBy} ${safeSortOrder}
+      LIMIT $${paramCount++} OFFSET $${paramCount++}
+    `;
+    values.push(limit, offset);
+
+    const dataResult = await pool.query(dataQuery, values);
+
+    return {
+      data: dataResult.rows as ChannelListItem[],
+      total,
+      limit,
+      offset
+    };
+  }
+
+  /**
+   * Get all channels with full data (for internal use or backward compatibility)
+   */
+  static async getChannelsFull(): Promise<Channel[]> {
     const result = await pool.query('SELECT * FROM channels ORDER BY created_at DESC');
     return result.rows.map(row => {
       let parsedData: any = {};
@@ -257,19 +338,74 @@ export class DatabaseService {
     return result.rows[0];
   }
 
-  static async getMediaAssets(type?: string): Promise<MediaAsset[]> {
-    let query = 'SELECT * FROM media_assets';
-    let params: any[] = [];
+  static async getMediaAssets(options: MediaAssetQueryOptions = {}): Promise<PaginatedMediaAssets> {
+    const {
+      search,
+      type,
+      file_status,
+      sort_by = 'created_at',
+      sort_order = 'desc',
+      limit: requestedLimit = 50,
+      offset = 0
+    } = options;
 
-    if (type) {
-      query += ' WHERE type = $1';
-      params.push(type);
+    // Enforce max limit of 100
+    const limit = Math.min(Math.max(1, requestedLimit), 100);
+
+    // Validate sort_by to prevent SQL injection
+    const allowedSortFields = ['title', 'type', 'file_status', 'created_at', 'updated_at'];
+    const safeSortBy = allowedSortFields.includes(sort_by) ? sort_by : 'created_at';
+    const safeSortOrder = sort_order === 'asc' ? 'ASC' : 'DESC';
+
+    const values: any[] = [];
+    const conditions: string[] = [];
+    let paramCount = 1;
+
+    // Build WHERE conditions
+    if (search) {
+      conditions.push(`title ILIKE $${paramCount++}`);
+      values.push(`%${search}%`);
     }
 
-    query += ' ORDER BY created_at DESC';
+    if (type) {
+      conditions.push(`type = $${paramCount++}`);
+      values.push(type);
+    }
 
-    const result = await pool.query(query, params);
-    return result.rows;
+    if (file_status) {
+      conditions.push(`file_status = $${paramCount++}`);
+      values.push(file_status);
+    }
+
+    const whereClause = conditions.length > 0 ? `WHERE ${conditions.join(' AND ')}` : '';
+
+    // Count query for total
+    const countQuery = `
+      SELECT COUNT(*) as total
+      FROM media_assets
+      ${whereClause}
+    `;
+    const countResult = await pool.query(countQuery, values.slice(0, paramCount - 1));
+    const total = parseInt(countResult.rows[0].total, 10);
+
+    // Data query with pagination - return partial data (no 'data' field)
+    const dataQuery = `
+      SELECT id, title, type, file_path, file_status, created_at, updated_at
+      FROM media_assets
+      ${whereClause}
+      ORDER BY ${safeSortBy} ${safeSortOrder}
+      LIMIT $${paramCount++} OFFSET $${paramCount++}
+    `;
+    values.push(limit, offset);
+
+    const dataResult = await pool.query(dataQuery, values);
+
+    return {
+      data: dataResult.rows as MediaAssetListItem[],
+      total,
+      limit,
+      offset
+    };
   }
 
   static async getMediaAssetById(id: string): Promise<MediaAsset | null> {
@@ -342,23 +478,76 @@ export class DatabaseService {
     return result.rows[0];
   }
 
-  static async getArticles(status?: string): Promise<Article[]> {
-    let query = `
-      SELECT a.*, c.name as channel_name 
-      FROM articles a 
-      JOIN channels c ON a.channel_id = c.id
-    `;
-    let params: any[] = [];
+  static async getArticles(options: ArticleQueryOptions = {}): Promise<PaginatedArticles> {
+    const {
+      search,
+      status,
+      channel_id,
+      sort_by = 'created_at',
+      sort_order = 'desc',
+      limit: requestedLimit = 50,
+      offset = 0
+    } = options;
 
-    if (status) {
-      query += ' WHERE a.status = $1';
-      params.push(status);
+    // Enforce max limit of 100
+    const limit = Math.min(Math.max(1, requestedLimit), 100);
+
+    // Validate sort_by to prevent SQL injection
+    const allowedSortFields = ['title', 'status', 'publish_date', 'created_at', 'updated_at'];
+    const safeSortBy = allowedSortFields.includes(sort_by) ? sort_by : 'created_at';
+    const safeSortOrder = sort_order === 'asc' ? 'ASC' : 'DESC';
+
+    const values: any[] = [];
+    const conditions: string[] = [];
+    let paramCount = 1;
+
+    // Build WHERE conditions
+    if (search) {
+      conditions.push(`a.title ILIKE $${paramCount++}`);
+      values.push(`%${search}%`);
     }
 
-    query += ' ORDER BY a.created_at DESC';
+    if (status) {
+      conditions.push(`a.status = $${paramCount++}`);
+      values.push(status);
+    }
 
-    const result = await pool.query(query, params);
-    return result.rows;
+    if (channel_id) {
+      conditions.push(`a.channel_id = $${paramCount++}`);
+      values.push(channel_id);
+    }
+
+    const whereClause = conditions.length > 0 ? `WHERE ${conditions.join(' AND ')}` : '';
+
+    // Count query for total
+    const countQuery = `
+      SELECT COUNT(*) as total
+      FROM articles a
+      ${whereClause}
+    `;
+    const countResult = await pool.query(countQuery, values.slice(0, paramCount - 1));
+    const total = parseInt(countResult.rows[0].total, 10);
+
+    // Data query with pagination - return partial data (no 'data' field)
+    const dataQuery = `
+      SELECT a.id, a.title, a.status, a.publish_date, a.channel_id,
+             a.created_at, a.updated_at, c.name as channel_name
+      FROM articles a
+      JOIN channels c ON a.channel_id = c.id
+      ${whereClause}
+      ORDER BY a.${safeSortBy} ${safeSortOrder}
+      LIMIT $${paramCount++} OFFSET $${paramCount++}
+    `;
+    values.push(limit, offset);
+
+    const dataResult = await pool.query(dataQuery, values);
+
+    return {
+      data: dataResult.rows as ArticleListItem[],
+      total,
+      limit,
+      offset
+    };
   }
 
   static async getArticleById(id: string): Promise<Article | null> {
@@ -451,23 +640,85 @@ export class DatabaseService {
     return result.rows[0];
   }
 
-  static async getPosts(status?: string): Promise<Post[]> {
-    let query = `
-      SELECT p.*, a.title as linked_article_title 
-      FROM posts p 
-      LEFT JOIN articles a ON p.linked_article_id = a.id
-    `;
-    let params: any[] = [];
+  static async getPosts(options: PostQueryOptions = {}): Promise<PaginatedPosts> {
+    const {
+      search,
+      status,
+      platform,
+      linked_article_id,
+      sort_by = 'created_at',
+      sort_order = 'desc',
+      limit: requestedLimit = 50,
+      offset = 0
+    } = options;
 
-    if (status) {
-      query += ' WHERE p.status = $1';
-      params.push(status);
+    // Enforce max limit of 100
+    const limit = Math.min(Math.max(1, requestedLimit), 100);
+
+    // Validate sort_by to prevent SQL injection
+    const allowedSortFields = ['status', 'platform', 'publish_date', 'created_at', 'updated_at'];
+    const safeSortBy = allowedSortFields.includes(sort_by) ? sort_by : 'created_at';
+    const safeSortOrder = sort_order === 'asc' ? 'ASC' : 'DESC';
+
+    const values: any[] = [];
+    const conditions: string[] = [];
+    let paramCount = 1;
+
+    // Build WHERE conditions
+    if (search) {
+      conditions.push(`(p.platform ILIKE $${paramCount} OR a.title ILIKE $${paramCount})`);
+      values.push(`%${search}%`);
+      paramCount++;
     }
 
-    query += ' ORDER BY p.created_at DESC';
+    if (status) {
+      conditions.push(`p.status = $${paramCount++}`);
+      values.push(status);
+    }
 
-    const result = await pool.query(query, params);
-    return result.rows;
+    if (platform) {
+      conditions.push(`p.platform = $${paramCount++}`);
+      values.push(platform);
+    }
+
+    if (linked_article_id) {
+      conditions.push(`p.linked_article_id = $${paramCount++}`);
+      values.push(linked_article_id);
+    }
+
+    const whereClause = conditions.length > 0 ? `WHERE ${conditions.join(' AND ')}` : '';
+
+    // Count query for total
+    const countQuery = `
+      SELECT COUNT(*) as total
+      FROM posts p
+      LEFT JOIN articles a ON p.linked_article_id = a.id
+      ${whereClause}
+    `;
+    const countResult = await pool.query(countQuery, values.slice(0, paramCount - 1));
+    const total = parseInt(countResult.rows[0].total, 10);
+
+    // Data query with pagination - return partial data (no 'data' field)
+    const dataQuery = `
+      SELECT p.id, p.status, p.publish_date, p.platform, p.linked_article_id,
+             p.preview_file_path, p.file_status, p.created_at, p.updated_at,
+             a.title as linked_article_title
+      FROM posts p
+      LEFT JOIN articles a ON p.linked_article_id = a.id
+      ${whereClause}
+      ORDER BY p.${safeSortBy} ${safeSortOrder}
+      LIMIT $${paramCount++} OFFSET $${paramCount++}
+    `;
+    values.push(limit, offset);
+
+    const dataResult = await pool.query(dataQuery, values);
+
+    return {
+      data: dataResult.rows as PostListItem[],
+      total,
+      limit,
+      offset
+    };
   }
 
   static async getPostById(id: string): Promise<Post | null> {
@@ -876,14 +1127,76 @@ export class DatabaseService {
     return result.rows[0];
   }
 
-  static async getRecipients(): Promise<any[]> {
-    const result = await pool.query(`
-      SELECT r.*, c.name as channel_name 
-      FROM recipients r 
+  static async getRecipients(options: RecipientQueryOptions = {}): Promise<PaginatedRecipients> {
+    const {
+      search,
+      status,
+      channel_id,
+      sort_by = 'created_at',
+      sort_order = 'desc',
+      limit: requestedLimit = 50,
+      offset = 0
+    } = options;
+
+    // Enforce max limit of 100
+    const limit = Math.min(Math.max(1, requestedLimit), 100);
+
+    // Validate sort_by to prevent SQL injection
+    const allowedSortFields = ['email', 'status', 'registration_date', 'last_notification_date', 'created_at', 'updated_at'];
+    const safeSortBy = allowedSortFields.includes(sort_by) ? sort_by : 'created_at';
+    const safeSortOrder = sort_order === 'asc' ? 'ASC' : 'DESC';
+
+    const values: any[] = [];
+    const conditions: string[] = [];
+    let paramCount = 1;
+
+    // Build WHERE conditions
+    if (search) {
+      conditions.push(`r.email ILIKE $${paramCount++}`);
+      values.push(`%${search}%`);
+    }
+
+    if (status) {
+      conditions.push(`r.status = $${paramCount++}`);
+      values.push(status);
+    }
+
+    if (channel_id) {
+      conditions.push(`r.channel_id = $${paramCount++}`);
+      values.push(channel_id);
+    }
+
+    const whereClause = conditions.length > 0 ? `WHERE ${conditions.join(' AND ')}` : '';
+
+    // Count query for total
+    const countQuery = `
+      SELECT COUNT(*) as total
+      FROM recipients r
+      ${whereClause}
+    `;
+    const countResult = await pool.query(countQuery, values.slice(0, paramCount - 1));
+    const total = parseInt(countResult.rows[0].total, 10);
+
+    // Data query with pagination - return partial data (no 'data' field)
+    const dataQuery = `
+      SELECT r.id, r.email, r.channel_id, r.registration_date, r.last_notification_date,
+             r.status, r.created_at, r.updated_at, c.name as channel_name
+      FROM recipients r
       JOIN channels c ON r.channel_id = c.id
-      ORDER BY r.created_at DESC
-    `);
-    return result.rows;
+      ${whereClause}
+      ORDER BY r.${safeSortBy} ${safeSortOrder}
+      LIMIT $${paramCount++} OFFSET $${paramCount++}
+    `;
+    values.push(limit, offset);
+
+    const dataResult = await pool.query(dataQuery, values);
+
+    return {
+      data: dataResult.rows as RecipientListItem[],
+      total,
+      limit,
+      offset
+    };
   }
 
   static async getRecipientById(id: string): Promise<any | null> {
@@ -966,9 +1279,76 @@ export class DatabaseService {
     return result.rows[0];
   }
 
-  static async getNewsletters(): Promise<any[]> {
-    const result = await pool.query('SELECT * FROM newsletters ORDER BY created_at DESC');
-    return result.rows;
+  static async getNewsletters(options: NewsletterQueryOptions = {}): Promise<PaginatedNewsletters> {
+    const {
+      search,
+      status,
+      channel_id,
+      sort_by = 'created_at',
+      sort_order = 'desc',
+      limit: requestedLimit = 50,
+      offset = 0
+    } = options;
+
+    // Enforce max limit of 100
+    const limit = Math.min(Math.max(1, requestedLimit), 100);
+
+    // Validate sort_by to prevent SQL injection
+    const allowedSortFields = ['subject', 'status', 'publish_date', 'created_at', 'updated_at'];
+    const safeSortBy = allowedSortFields.includes(sort_by) ? sort_by : 'created_at';
+    const safeSortOrder = sort_order === 'asc' ? 'ASC' : 'DESC';
+
+    const values: any[] = [];
+    const conditions: string[] = [];
+    let paramCount = 1;
+
+    // Build WHERE conditions
+    if (search) {
+      conditions.push(`n.subject ILIKE $${paramCount++}`);
+      values.push(`%${search}%`);
+    }
+
+    if (status) {
+      conditions.push(`n.status = $${paramCount++}`);
+      values.push(status);
+    }
+
+    if (channel_id) {
+      conditions.push(`n.channel_id = $${paramCount++}`);
+      values.push(channel_id);
+    }
+
+    const whereClause = conditions.length > 0 ? `WHERE ${conditions.join(' AND ')}` : '';
+
+    // Count query for total
+    const countQuery = `
+      SELECT COUNT(*) as total
+      FROM newsletters n
+      ${whereClause}
+    `;
+    const countResult = await pool.query(countQuery, values.slice(0, paramCount - 1));
+    const total = parseInt(countResult.rows[0].total, 10);
+
+    // Data query with pagination - return partial data (no 'data' field)
+    const dataQuery = `
+      SELECT n.id, n.subject, n.status, n.publish_date, n.channel_id,
+             n.created_at, n.updated_at, c.name as channel_name
+      FROM newsletters n
+      LEFT JOIN channels c ON n.channel_id = c.id
+      ${whereClause}
+      ORDER BY n.${safeSortBy} ${safeSortOrder}
+      LIMIT $${paramCount++} OFFSET $${paramCount++}
+    `;
+    values.push(limit, offset);
+
+    const dataResult = await pool.query(dataQuery, values);
+
+    return {
+      data: dataResult.rows as NewsletterListItem[],
+      total,
+      limit,
+      offset
+    };
   }
 
   static async getNewsletterById(id: string): Promise<any | null> {
@@ -1049,21 +1429,68 @@ export class DatabaseService {
     return session;
   }
 
-  static async getChatSessions(): Promise<ChatSession[]> {
-    const query = `
-      SELECT cs.*, 
+  static async getChatSessions(options: ChatSessionQueryOptions = {}): Promise<PaginatedChatSessions> {
+    const {
+      search,
+      sort_by = 'updated_at',
+      sort_order = 'desc',
+      limit: requestedLimit = 50,
+      offset = 0
+    } = options;
+
+    // Enforce max limit of 100
+    const limit = Math.min(Math.max(1, requestedLimit), 100);
+
+    // Validate sort_by to prevent SQL injection
+    const allowedSortFields = ['title', 'created_at', 'updated_at'];
+    const safeSortBy = allowedSortFields.includes(sort_by) ? sort_by : 'updated_at';
+    const safeSortOrder = sort_order === 'asc' ? 'ASC' : 'DESC';
+
+    const values: any[] = [];
+    const conditions: string[] = [];
+    let paramCount = 1;
+
+    // Build WHERE conditions
+    if (search) {
+      conditions.push(`cs.title ILIKE $${paramCount++}`);
+      values.push(`%${search}%`);
+    }
+
+    const whereClause = conditions.length > 0 ? `WHERE ${conditions.join(' AND ')}` : '';
+
+    // Count query for total (need to count distinct sessions)
+    const countQuery = `
+      SELECT COUNT(DISTINCT cs.id) as total
+      FROM chat_sessions cs
+      ${whereClause}
+    `;
+    const countResult = await pool.query(countQuery, values.slice(0, paramCount - 1));
+    const total = parseInt(countResult.rows[0].total, 10);
+
+    // Data query with pagination
+    const dataQuery = `
+      SELECT cs.id, cs.title, cs.created_at, cs.updated_at,
              COUNT(cm.id) as message_count,
-             c.name as channel_names
+             STRING_AGG(DISTINCT c.name, ', ') as channel_names
       FROM chat_sessions cs
       LEFT JOIN chat_messages cm ON cs.id = cm.session_id
       LEFT JOIN chat_session_channels csc ON cs.id = csc.session_id
       LEFT JOIN channels c ON csc.channel_id = c.id
+      ${whereClause}
       GROUP BY cs.id
-      ORDER BY cs.updated_at DESC
+      ORDER BY cs.${safeSortBy} ${safeSortOrder}
+      LIMIT $${paramCount++} OFFSET $${paramCount++}
     `;
+    values.push(limit, offset);
 
-    const result = await pool.query(query);
-    return result.rows;
+    const dataResult = await pool.query(dataQuery, values);
+
+    return {
+      data: dataResult.rows as ChatSessionListItem[],
+      total,
+      limit,
+      offset
+    };
   }
 
   static async getChatSessionById(id: string): Promise<ChatSessionWithMessages | null> {
@@ -1164,10 +1591,76 @@ export class DatabaseService {
     return result.rows[0];
   }
 
-  static async getChatMessages(sessionId: string): Promise<ChatMessage[]> {
+  static async getChatMessages(sessionId: string, options: ChatMessageQueryOptions = {}): Promise<PaginatedChatMessages> {
+    const {
+      search,
+      role,
+      sort_by = 'created_at',
+      sort_order = 'asc', // Default to asc for messages (oldest first)
+      limit: requestedLimit = 50,
+      offset = 0
+    } = options;
+
+    // Enforce max limit of 100
+    const limit = Math.min(Math.max(1, requestedLimit), 100);
+
+    const safeSortOrder = sort_order === 'desc' ? 'DESC' : 'ASC';
+
+    const values: any[] = [sessionId];
+    const conditions: string[] = ['session_id = $1'];
+    let paramCount = 2;
+
+    // Build WHERE conditions
+    if (search) {
+      conditions.push(`content ILIKE $${paramCount++}`);
+      values.push(`%${search}%`);
+    }
+
+    if (role) {
+      conditions.push(`role = $${paramCount++}`);
+      values.push(role);
+    }
+
+    const whereClause = `WHERE ${conditions.join(' AND ')}`;
+
+    // Count query for total
+    const countQuery = `
+      SELECT COUNT(*) as total
+      FROM chat_messages
+      ${whereClause}
+    `;
+    const countResult = await pool.query(countQuery, values.slice(0, paramCount - 1));
+    const total = parseInt(countResult.rows[0].total, 10);
+
+    // Data query with pagination - return content preview instead of full content
+    const dataQuery = `
+      SELECT id, session_id, role,
+             LEFT(content, 200) as content_preview,
+             created_at
+      FROM chat_messages
+      ${whereClause}
+      ORDER BY created_at ${safeSortOrder}
+      LIMIT $${paramCount++} OFFSET $${paramCount++}
+    `;
+    values.push(limit, offset);
+
+    const dataResult = await pool.query(dataQuery, values);
+
+    return {
+      data: dataResult.rows as ChatMessageListItem[],
+      total,
+      limit,
+      offset
+    };
+  }
+
+  /**
+   * Get all messages for a session with full content (for individual session view)
+   */
+  static async getChatMessagesFull(sessionId: string): Promise<ChatMessage[]> {
     const query = `
-      SELECT * FROM chat_messages 
-      WHERE session_id = $1 
+      SELECT * FROM chat_messages
+      WHERE session_id = $1
       ORDER BY created_at ASC
     `;
 

@@ -1,9 +1,11 @@
-import { Request, Response } from 'express';
+import type { Request, Response } from 'express';
 import { DatabaseService } from '../services/DatabaseService';
-import {
+import type {
   CreateChatSessionRequest,
   UpdateChatSessionRequest,
-  CreateChatMessageRequest
+  CreateChatMessageRequest,
+  ChatSessionQueryOptions,
+  ChatMessageQueryOptions
 } from '../models/Chat';
 import logger from '../utils/logger';
 
@@ -41,8 +43,16 @@ export class ChatController {
   // Chat Session endpoints
   static async getChatSessions(req: Request, res: Response) {
     try {
-      const sessions = await DatabaseService.getChatSessions();
-      res.json(sessions);
+      const options: ChatSessionQueryOptions = {
+        search: req.query.search as string | undefined,
+        sort_by: req.query.sort_by as ChatSessionQueryOptions['sort_by'] | undefined,
+        sort_order: req.query.sort_order as 'asc' | 'desc' | undefined,
+        limit: req.query.limit ? parseInt(req.query.limit as string, 10) : undefined,
+        offset: req.query.offset ? parseInt(req.query.offset as string, 10) : undefined
+      };
+
+      const result = await DatabaseService.getChatSessions(options);
+      res.json(result);
     } catch (error) {
       logger.error('Error fetching chat sessions:', error);
       res.status(500).json({ message: 'Internal server error' });
@@ -164,8 +174,17 @@ export class ChatController {
   static async getChatMessages(req: Request, res: Response) {
     try {
       const { sessionId } = req.params;
-      const messages = await DatabaseService.getChatMessages(sessionId);
-      res.json(messages);
+      const options: ChatMessageQueryOptions = {
+        search: req.query.search as string | undefined,
+        role: req.query.role as 'user' | 'assistant' | undefined,
+        sort_by: req.query.sort_by as ChatMessageQueryOptions['sort_by'] | undefined,
+        sort_order: req.query.sort_order as 'asc' | 'desc' | undefined,
+        limit: req.query.limit ? parseInt(req.query.limit as string, 10) : undefined,
+        offset: req.query.offset ? parseInt(req.query.offset as string, 10) : undefined
+      };
+
+      const result = await DatabaseService.getChatMessages(sessionId, options);
+      res.json(result);
     } catch (error) {
       logger.error('Error fetching chat messages:', error);
       res.status(500).json({ message: 'Internal server error' });

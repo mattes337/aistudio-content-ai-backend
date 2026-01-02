@@ -1,6 +1,6 @@
 import type { Request, Response } from 'express';
 import { DatabaseService } from '../services/DatabaseService';
-import type { CreateMediaAssetRequest, UpdateMediaAssetRequest } from '../models/MediaAsset';
+import type { CreateMediaAssetRequest, UpdateMediaAssetRequest, MediaAssetQueryOptions, MediaType, FileStatus } from '../models/MediaAsset';
 import logger from '../utils/logger';
 import { getFileUrl } from '../utils/fileUpload';
 
@@ -10,16 +10,28 @@ const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12
 export class MediaAssetController {
   static async getMediaAssets(req: Request, res: Response) {
     try {
-      const { type } = req.query;
-      const assets = await DatabaseService.getMediaAssets(type as string);
+      const options: MediaAssetQueryOptions = {
+        search: req.query.search as string | undefined,
+        type: req.query.type as MediaType | undefined,
+        file_status: req.query.file_status as FileStatus | undefined,
+        sort_by: req.query.sort_by as MediaAssetQueryOptions['sort_by'] | undefined,
+        sort_order: req.query.sort_order as 'asc' | 'desc' | undefined,
+        limit: req.query.limit ? parseInt(req.query.limit as string, 10) : undefined,
+        offset: req.query.offset ? parseInt(req.query.offset as string, 10) : undefined
+      };
+
+      const result = await DatabaseService.getMediaAssets(options);
 
       // Add URL to each asset
-      const assetsWithUrl = assets.map(asset => ({
+      const dataWithUrl = result.data.map(asset => ({
         ...asset,
         url: getFileUrl(asset.file_path)
       }));
 
-      res.json(assetsWithUrl);
+      res.json({
+        ...result,
+        data: dataWithUrl
+      });
     } catch (error) {
       logger.error('Error fetching media assets:', error);
       res.status(500).json({ message: 'Internal server error' });

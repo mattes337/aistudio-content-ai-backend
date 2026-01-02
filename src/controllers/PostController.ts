@@ -1,6 +1,6 @@
 import type { Request, Response } from 'express';
 import { DatabaseService } from '../services/DatabaseService';
-import type { CreatePostRequest, UpdatePostRequest } from '../models/Post';
+import type { CreatePostRequest, UpdatePostRequest, PostQueryOptions, PostStatus } from '../models/Post';
 import logger from '../utils/logger';
 import { getFileUrl } from '../utils/fileUpload';
 
@@ -10,9 +10,19 @@ const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12
 export class PostController {
   static async getPosts(req: Request, res: Response) {
     try {
-      const { status } = req.query;
-      const posts = await DatabaseService.getPosts(status as string);
-      res.json(posts);
+      const options: PostQueryOptions = {
+        search: req.query.search as string | undefined,
+        status: req.query.status as PostStatus | undefined,
+        platform: req.query.platform as string | undefined,
+        linked_article_id: req.query.linked_article_id as string | undefined,
+        sort_by: req.query.sort_by as PostQueryOptions['sort_by'] | undefined,
+        sort_order: req.query.sort_order as 'asc' | 'desc' | undefined,
+        limit: req.query.limit ? parseInt(req.query.limit as string, 10) : undefined,
+        offset: req.query.offset ? parseInt(req.query.offset as string, 10) : undefined
+      };
+
+      const result = await DatabaseService.getPosts(options);
+      res.json(result);
     } catch (error) {
       logger.error('Error fetching posts:', error);
       res.status(500).json({ message: 'Internal server error' });

@@ -1,13 +1,23 @@
-import { Request, Response } from 'express';
+import type { Request, Response } from 'express';
 import { DatabaseService } from '../services/DatabaseService';
-import { CreateRecipientRequest, UpdateRecipientRequest } from '../models/Recipient';
+import type { CreateRecipientRequest, UpdateRecipientRequest, RecipientQueryOptions, RecipientStatus } from '../models/Recipient';
 import logger from '../utils/logger';
 
 export class RecipientController {
   static async getRecipients(req: Request, res: Response) {
     try {
-      const recipients = await DatabaseService.getRecipients();
-      res.json(recipients);
+      const options: RecipientQueryOptions = {
+        search: req.query.search as string | undefined,
+        status: req.query.status as RecipientStatus | undefined,
+        channel_id: req.query.channel_id as string | undefined,
+        sort_by: req.query.sort_by as RecipientQueryOptions['sort_by'] | undefined,
+        sort_order: req.query.sort_order as 'asc' | 'desc' | undefined,
+        limit: req.query.limit ? parseInt(req.query.limit as string, 10) : undefined,
+        offset: req.query.offset ? parseInt(req.query.offset as string, 10) : undefined
+      };
+
+      const result = await DatabaseService.getRecipients(options);
+      res.json(result);
     } catch (error) {
       logger.error('Error fetching recipients:', error);
       res.status(500).json({ message: 'Internal server error' });
