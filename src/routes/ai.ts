@@ -752,6 +752,110 @@ router.post('/edit/image-v2', AIController.editImageNew);
  */
 router.post('/infer-metadata', AIController.inferMetadata);
 
+/**
+ * @swagger
+ * /api/ai/metadata:
+ *   post:
+ *     summary: Generate specific metadata based on requested operations
+ *     description: |
+ *       Unified metadata generation endpoint. Caller specifies which metadata
+ *       operations to perform. All requested operations run in parallel.
+ *     tags: [AI Generation]
+ *     security:
+ *       - bearerAuth: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required: [operations, content, contentType]
+ *             properties:
+ *               operations:
+ *                 type: array
+ *                 items:
+ *                   type: string
+ *                   enum: [title, subject, seoMetadata, excerpt, previewText, postDetails]
+ *                 description: Which metadata operations to perform
+ *                 example: ["title", "excerpt", "seoMetadata"]
+ *               content:
+ *                 type: string
+ *                 description: Content to generate metadata from
+ *               contentType:
+ *                 type: string
+ *                 enum: [article, post, newsletter]
+ *                 description: Type of content
+ *               title:
+ *                 type: string
+ *                 description: Required when requesting seoMetadata
+ *               prompt:
+ *                 type: string
+ *                 description: Prompt for postDetails operation
+ *               currentCaption:
+ *                 type: string
+ *                 description: Current caption context for postDetails
+ *     responses:
+ *       200:
+ *         description: Metadata generated successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 title:
+ *                   type: object
+ *                   properties:
+ *                     title:
+ *                       type: string
+ *                 subject:
+ *                   type: object
+ *                   properties:
+ *                     subject:
+ *                       type: string
+ *                 seoMetadata:
+ *                   type: object
+ *                   properties:
+ *                     seo:
+ *                       type: object
+ *                       properties:
+ *                         title:
+ *                           type: string
+ *                         description:
+ *                           type: string
+ *                         keywords:
+ *                           type: string
+ *                         slug:
+ *                           type: string
+ *                     excerpt:
+ *                       type: string
+ *                 excerpt:
+ *                   type: object
+ *                   properties:
+ *                     excerpt:
+ *                       type: string
+ *                 previewText:
+ *                   type: object
+ *                   properties:
+ *                     previewText:
+ *                       type: string
+ *                 postDetails:
+ *                   type: object
+ *                   properties:
+ *                     content:
+ *                       type: string
+ *                     altText:
+ *                       type: string
+ *                     tags:
+ *                       type: array
+ *                       items:
+ *                         type: string
+ *       400:
+ *         description: Invalid request
+ *       500:
+ *         description: Internal server error
+ */
+router.post('/metadata', AIController.generateMetadataByOperations);
+
 // ============== Claude Agent Endpoints ==============
 
 /**

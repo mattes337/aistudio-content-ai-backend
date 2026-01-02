@@ -62,7 +62,13 @@ import type {
 import type {
   ImageType,
   ImageBounds,
+  MetadataOperation,
+  MetadataInput,
+  MetadataResults,
 } from './workflows/types';
+
+// Re-export workflow types for controller use
+export type { ImageType, ImageBounds, MetadataOperation, MetadataInput, MetadataResults } from './workflows/types';
 
 // Import tools (for backwards compatibility export)
 export { agentTools, researchTools } from './tools';
@@ -206,6 +212,23 @@ export class AIService {
       default:
         return workflow.generate(['title', 'excerpt'], { content, contentType: type });
     }
+  }
+
+  /**
+   * Generate specific metadata based on requested operations.
+   * Caller specifies exactly which metadata fields they need.
+   *
+   * @param operations - Array of metadata operations to perform
+   * @param input - Input data including content and context
+   * @returns Object containing results for each requested operation
+   */
+  static async generateMetadataByOperations<T extends MetadataOperation>(
+    operations: T[],
+    input: MetadataInput
+  ): Promise<Pick<MetadataResults, T>> {
+    const workflow = getMetadataWorkflow();
+    if (!workflow) throw new Error('No metadata workflow available');
+    return workflow.generate(operations, input);
   }
 
   static async generateBulkContent(

@@ -1,9 +1,20 @@
-import { Request, Response } from 'express';
+import type { Request, Response } from 'express';
 import { AIService } from '../services/ai-service';
+import type { MetadataOperation, ContentType } from '../services/ai-service';
 import { OpenNotebookService } from '../services/OpenNotebookService';
 import { DatabaseService } from '../services/DatabaseService';
 import { loadEnvConfig } from '../utils/env';
 import logger from '../utils/logger';
+
+// Valid metadata operations for validation
+const VALID_METADATA_OPERATIONS: MetadataOperation[] = [
+  'title',
+  'subject',
+  'seoMetadata',
+  'excerpt',
+  'previewText',
+  'postDetails',
+];
 
 const config = loadEnvConfig();
 
@@ -318,13 +329,37 @@ export class AIController {
     }
   }
 
+  /**
+   * Generate image with optional type and bounds.
+   *
+   * POST /api/ai/image/generate
+   * Body: {
+   *   prompt: string,
+   *   imageType?: 'photo' | 'illustration' | 'icon' | 'diagram' | 'art' | 'other',
+   *   bounds?: { width?: number, height?: number, aspectRatio?: string },
+   *   aspectRatio?: string  // Legacy support, use bounds.aspectRatio instead
+   * }
+   */
   static async generateImageNew(req: Request, res: Response) {
     try {
-      const { prompt, aspectRatio } = req.body;
+      const { prompt, imageType, bounds, aspectRatio } = req.body;
       if (!prompt) {
         return res.status(400).json({ message: 'Prompt is required' });
       }
-      const result = await AIService.generateImage(prompt, aspectRatio || '1:1');
+
+      // Validate imageType if provided
+      const validImageTypes = ['photo', 'illustration', 'icon', 'diagram', 'art', 'other'];
+      if (imageType && !validImageTypes.includes(imageType)) {
+        return res.status(400).json({
+          message: `Invalid imageType. Valid types: ${validImageTypes.join(', ')}`,
+        });
+      }
+
+      const result = await AIService.generateImage(prompt, {
+        imageType,
+        bounds,
+        aspectRatio, // Legacy support
+      });
       res.json(result);
     } catch (error) {
       logger.error('Error generating image:', error);
@@ -332,13 +367,37 @@ export class AIController {
     }
   }
 
+  /**
+   * Edit existing image with optional type and bounds.
+   *
+   * POST /api/ai/image/edit
+   * Body: {
+   *   base64ImageData: string,
+   *   mimeType: string,
+   *   prompt: string,
+   *   imageType?: 'photo' | 'illustration' | 'icon' | 'diagram' | 'art' | 'other',
+   *   bounds?: { width?: number, height?: number, aspectRatio?: string }
+   * }
+   */
   static async editImageNew(req: Request, res: Response) {
     try {
-      const { base64ImageData, mimeType, prompt } = req.body;
+      const { base64ImageData, mimeType, prompt, imageType, bounds } = req.body;
       if (!base64ImageData || !mimeType || !prompt) {
         return res.status(400).json({ message: 'Base64 image data, mime type, and prompt are required' });
       }
-      const result = await AIService.editImage(base64ImageData, mimeType, prompt);
+
+      // Validate imageType if provided
+      const validImageTypes = ['photo', 'illustration', 'icon', 'diagram', 'art', 'other'];
+      if (imageType && !validImageTypes.includes(imageType)) {
+        return res.status(400).json({
+          message: `Invalid imageType. Valid types: ${validImageTypes.join(', ')}`,
+        });
+      }
+
+      const result = await AIService.editImage(base64ImageData, mimeType, prompt, {
+        imageType,
+        bounds,
+      });
       res.json(result);
     } catch (error) {
       logger.error('Error editing image:', error);
@@ -359,6 +418,78 @@ export class AIController {
       res.json(result);
     } catch (error) {
       logger.error('Error inferring metadata:', error);
+      res.status(500).json({ message: 'Internal server error' });
+    }
+  }
+
+  /**
+   * Unified metadata generation endpoint.
+   * Caller specifies which metadata operations to perform.
+   *
+   * POST /api/ai/metadata
+   * Body: {
+   *   operations: ['title', 'excerpt', 'seoMetadata', ...],
+   *   content: string,
+   *   contentType: 'article' | 'post' | 'newsletter',
+   *   title?: string,        // Required for seoMetadata
+   *   prompt?: string,       // For postDetails
+   *   currentCaption?: string // For postDetails
+   * }
+   */
+  static async generateMetadataByOperations(req: Request, res: Response) {
+    try {
+      const { operations, content, contentType, title, prompt, currentCaption } = req.body;
+
+      // Validate operations array
+      if (!operations || !Array.isArray(operations) || operations.length === 0) {
+        return res.status(400).json({
+          message: 'Operations array is required',
+          validOperations: VALID_METADATA_OPERATIONS,
+        });
+      }
+
+      // Validate each operation
+      const invalidOps = operations.filter((op: string) => !VALID_METADATA_OPERATIONS.includes(op as MetadataOperation));
+      if (invalidOps.length > 0) {
+        return res.status(400).json({
+          message: `Invalid operations: ${invalidOps.join(', ')}`,
+          validOperations: VALID_METADATA_OPERATIONS,
+        });
+      }
+
+      // Validate content
+      if (!content) {
+        return res.status(400).json({ message: 'Content is required' });
+      }
+
+      // Validate contentType
+      if (!contentType || !['article', 'post', 'newsletter'].includes(contentType)) {
+        return res.status(400).json({
+          message: 'Valid contentType (article, post, newsletter) is required',
+        });
+      }
+
+      // Validate title is provided if seoMetadata is requested
+      if (operations.includes('seoMetadata') && !title) {
+        return res.status(400).json({
+          message: 'Title is required when requesting seoMetadata',
+        });
+      }
+
+      const result = await AIService.generateMetadataByOperations(
+        operations as MetadataOperation[],
+        {
+          content,
+          contentType: contentType as ContentType,
+          title,
+          prompt,
+          currentCaption,
+        }
+      );
+
+      res.json(result);
+    } catch (error) {
+      logger.error('Error generating metadata:', error);
       res.status(500).json({ message: 'Internal server error' });
     }
   }
