@@ -99,7 +99,7 @@ export class BuiltinMetadataWorkflow implements MetadataWorkflow {
           temperature: modelConfig.temperature,
           maxOutputTokens: modelConfig.maxTokens,
           providerOptions: modelConfig.providerOptions,
-          system: 'You are a headline writer. Generate catchy, SEO-friendly titles. Always respond with valid JSON.',
+          system: 'You are a headline writer. Generate catchy, SEO-friendly titles. IMPORTANT: Always respond in the same language as the input content. Always respond with valid JSON.',
           prompt: `Generate a title for this article content:\n\n${content.substring(0, 2000)}`,
           output: Output.object({ schema: TitleSchema }),
         });
@@ -123,7 +123,7 @@ export class BuiltinMetadataWorkflow implements MetadataWorkflow {
           temperature: modelConfig.temperature,
           maxOutputTokens: modelConfig.maxTokens,
           providerOptions: modelConfig.providerOptions,
-          system: 'You are an email marketing expert. Generate compelling subject lines. Always respond with valid JSON.',
+          system: 'You are an email marketing expert. Generate compelling subject lines. IMPORTANT: Always respond in the same language as the input content. Always respond with valid JSON.',
           prompt: `Generate a subject line for this newsletter:\n\n${content.substring(0, 2000)}`,
           output: Output.object({ schema: SubjectSchema }),
         });
@@ -147,6 +147,7 @@ export class BuiltinMetadataWorkflow implements MetadataWorkflow {
           temperature: modelConfig.temperature,
           maxOutputTokens: modelConfig.maxTokens,
           providerOptions: modelConfig.providerOptions,
+          system: 'You are an SEO expert. IMPORTANT: Always respond in the same language as the input content. Always respond with valid JSON.',
           prompt: `Generate SEO metadata and a short excerpt for this article.\nTitle: ${title}\nContent: ${content.substring(0, 3000)}`,
           output: Output.object({ schema: MetadataSchema }),
         });
@@ -174,6 +175,7 @@ export class BuiltinMetadataWorkflow implements MetadataWorkflow {
           temperature: modelConfig.temperature,
           maxOutputTokens: modelConfig.maxTokens,
           providerOptions: modelConfig.providerOptions,
+          system: 'You are a content summarizer. IMPORTANT: Always respond in the same language as the input content. Always respond with valid JSON.',
           prompt: `Summarize this text into a short excerpt:\n\n${content.substring(0, 2000)}`,
           output: Output.object({ schema: ExcerptSchema }),
         });
@@ -197,6 +199,7 @@ export class BuiltinMetadataWorkflow implements MetadataWorkflow {
           temperature: modelConfig.temperature,
           maxOutputTokens: modelConfig.maxTokens,
           providerOptions: modelConfig.providerOptions,
+          system: 'You are an email marketing expert. IMPORTANT: Always respond in the same language as the input content. Always respond with valid JSON.',
           prompt: `Generate a short preview text (preheader) for this email:\n\n${content.substring(0, 2000)}`,
           output: Output.object({ schema: PreviewTextSchema }),
         });
@@ -231,6 +234,7 @@ Output Requirements:
           temperature: modelConfig.temperature,
           maxOutputTokens: modelConfig.maxTokens,
           providerOptions: modelConfig.providerOptions,
+          system: 'You are a social media content expert. IMPORTANT: Always respond in the same language as the input content. Always respond with valid JSON.',
           prompt: input,
           output: Output.object({ schema: PostDetailsSchema }),
         });
