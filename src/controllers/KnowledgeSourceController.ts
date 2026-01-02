@@ -258,4 +258,23 @@ export class KnowledgeSourceController {
       res.status(500).json({ message: 'Internal server error' });
     }
   }
+
+  static async getKnowledgeSourceLogs(req: Request, res: Response) {
+    try {
+      const { sourceId } = req.params;
+      const limit = Math.min(parseInt(req.query.limit as string) || 50, 100);
+      const offset = parseInt(req.query.offset as string) || 0;
+
+      const source = await DatabaseService.getKnowledgeSourceById(sourceId);
+      if (!source) {
+        return res.status(404).json({ message: 'Knowledge source not found' });
+      }
+
+      const result = await DatabaseService.getKnowledgeSourceLogs(sourceId, limit, offset);
+      res.json(result);
+    } catch (error) {
+      logger.error('Error fetching knowledge source logs:', error);
+      res.status(500).json({ message: 'Internal server error' });
+    }
+  }
 }

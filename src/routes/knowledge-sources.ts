@@ -340,4 +340,77 @@ router.delete('/:sourceId', KnowledgeSourceController.deleteKnowledgeSource);
  */
 router.post('/:sourceId/reingest', KnowledgeSourceController.reingestKnowledgeSource);
 
+/**
+ * @swagger
+ * /api/knowledge-sources/{sourceId}/logs:
+ *   get:
+ *     summary: Get processing logs for a knowledge source
+ *     description: Returns paginated processing history including sync events, transformations, and errors
+ *     tags: [Knowledge Sources]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: sourceId
+ *         required: true
+ *         schema:
+ *           type: string
+ *         description: Knowledge source ID
+ *       - in: query
+ *         name: limit
+ *         schema:
+ *           type: integer
+ *           minimum: 1
+ *           maximum: 100
+ *           default: 50
+ *         description: Maximum number of logs to return
+ *       - in: query
+ *         name: offset
+ *         schema:
+ *           type: integer
+ *           minimum: 0
+ *           default: 0
+ *         description: Number of logs to skip for pagination
+ *     responses:
+ *       200:
+ *         description: Paginated list of processing logs
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 data:
+ *                   type: array
+ *                   items:
+ *                     type: object
+ *                     properties:
+ *                       id:
+ *                         type: string
+ *                       knowledge_source_id:
+ *                         type: string
+ *                       event_type:
+ *                         type: string
+ *                       status:
+ *                         type: string
+ *                         enum: [info, warning, error, success]
+ *                       message:
+ *                         type: string
+ *                       metadata:
+ *                         type: object
+ *                       created_at:
+ *                         type: string
+ *                         format: date-time
+ *                 total:
+ *                   type: integer
+ *                 limit:
+ *                   type: integer
+ *                 offset:
+ *                   type: integer
+ *       404:
+ *         description: Knowledge source not found
+ *       500:
+ *         description: Internal server error
+ */
+router.get('/:sourceId/logs', KnowledgeSourceController.getKnowledgeSourceLogs);
+
 export default router;

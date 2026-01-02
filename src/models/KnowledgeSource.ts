@@ -86,3 +86,23 @@ export interface PaginatedKnowledgeSources {
   limit: number;
   offset: number;
 }
+
+// Processing log types
+export type LogStatus = 'info' | 'warning' | 'error' | 'success';
+
+export interface KnowledgeSourceLog {
+  id: string;
+  knowledge_source_id: string;
+  event_type: string;
+  status: LogStatus;
+  message: string;
+  metadata: Record<string, any>;
+  created_at: Date;
+}
+
+export interface PaginatedKnowledgeSourceLogs {
+  data: KnowledgeSourceLog[];
+  total: number;
+  limit: number;
+  offset: number;
+}

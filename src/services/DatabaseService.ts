@@ -10,7 +10,10 @@ import type {
   CreateKnowledgeSourceRequest,
   UpdateKnowledgeSourceRequest,
   KnowledgeSourceQueryOptions,
-  PaginatedKnowledgeSources
+  PaginatedKnowledgeSources,
+  KnowledgeSourceLog,
+  LogStatus,
+  PaginatedKnowledgeSourceLogs
 } from '../models/KnowledgeSource';
 import { deleteFile } from '../utils/fileUpload';
 import type { CreateRecipientRequest, UpdateRecipientRequest } from '../models/Recipient';
@@ -1238,5 +1241,66 @@ export class DatabaseService {
     await new Promise(resolve => setTimeout(resolve, 500));
 
     return responses[randomIndex]!;
+  }
+
+  // Knowledge Source Log operations
+  static async createKnowledgeSourceLog(
+    sourceId: string,
+    eventType: string,
+    status: LogStatus,
+    message: string,
+    metadata?: Record<string, any>
+  ): Promise<KnowledgeSourceLog> {
+    const query = `
+      INSERT INTO knowledge_source_logs
+      (knowledge_source_id, event_type, status, message, metadata)
+      VALUES ($1, $2, $3, $4, $5)
+      RETURNING *
+    `;
+    const result = await pool.query(query, [
+      sourceId,
+      eventType,
+      status,
+      message,
+      JSON.stringify(metadata ?? {})
+    ]);
+    return result.rows[0];
+  }
+
+  static async getKnowledgeSourceLogs(
+    sourceId: string,
+    limit = 50,
+    offset = 0
+  ): Promise<PaginatedKnowledgeSourceLogs> {
+    const countQuery = `
+      SELECT COUNT(*) FROM knowledge_source_logs
+      WHERE knowledge_source_id = $1
+    `;
+    const logsQuery = `
+      SELECT * FROM knowledge_source_logs
+      WHERE knowledge_source_id = $1
+      ORDER BY created_at DESC
+      LIMIT $2 OFFSET $3
+    `;
+
+    const [countResult, logsResult] = await Promise.all([
+      pool.query(countQuery, [sourceId]),
+      pool.query(logsQuery, [sourceId, limit, offset])
+    ]);
+
+    return {
+      data: logsResult.rows,
+      total: parseInt(countResult.rows[0].count, 10),
+      limit,
+      offset
+    };
+  }
+
+  static async deleteKnowledgeSourceLogs(sourceId: string): Promise<number> {
+    const result = await pool.query(
+      'DELETE FROM knowledge_source_logs WHERE knowledge_source_id = $1',
+      [sourceId]
+    );
+    return result.rowCount ?? 0;
   }
 }
