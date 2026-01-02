@@ -293,9 +293,17 @@ export class AIService {
    * Legacy method for backwards compatibility with AIService.generateArticleMetadata
    */
   static async generateArticleMetadata(content: string): Promise<ArticleMetadata> {
-    // Import legacy function for this specific case
-    const { generateArticleMetadata } = await import('./generators/metadata');
-    return generateArticleMetadata(content);
+    // Generate title first, then SEO metadata
+    const titleResult = await AIService.generateTitle(content);
+    const metadataResult = await AIService.generateMetadata(content, titleResult.title);
+
+    // Map to legacy ArticleMetadata format
+    return {
+      title: metadataResult.seo.title || titleResult.title,
+      description: metadataResult.seo.description,
+      keywords: metadataResult.seo.keywords.split(',').map((k: string) => k.trim()).filter(Boolean),
+      slug: metadataResult.seo.slug,
+    };
   }
 
   /**
