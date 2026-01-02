@@ -2,6 +2,28 @@ import { config } from 'dotenv';
 
 config();
 
+/**
+ * AI Model configuration for different task types
+ */
+export interface AIModelConfig {
+  /** Fast model for simple tasks (default: gemini-2.5-flash) */
+  flash: string;
+  /** Pro model for complex reasoning (default: gemini-2.5-pro) */
+  pro: string;
+  /** Override for research tasks */
+  research?: string;
+  /** Override for agent/multi-step tasks */
+  agent?: string;
+  /** Override for content refinement */
+  refine?: string;
+  /** Override for metadata generation */
+  metadata?: string;
+  /** Override for image generation */
+  image?: string;
+  /** Override for bulk content generation */
+  bulk?: string;
+}
+
 export interface AppConfig {
   nodeEnv: string;
   port: number;
@@ -20,11 +42,34 @@ export interface AppConfig {
   fileCleanupIntervalMinutes: number;
   /** Optional webhook URL for external research processing */
   researchWebhookUrl: string;
+  /** AI model configuration */
+  aiModels: AIModelConfig;
 }
+
+// Default model names
+const DEFAULT_MODEL_FLASH = 'gemini-2.5-flash';
+const DEFAULT_MODEL_PRO = 'gemini-2.5-pro';
 
 export const loadEnvConfig = (): AppConfig => {
   const nodeEnv = process.env.NODE_ENV || 'development';
   const port = parseInt(process.env.PORT || '3000', 10);
+
+  // Load base model names (can be overridden globally)
+  const flashModel = process.env.AI_MODEL_FLASH || DEFAULT_MODEL_FLASH;
+  const proModel = process.env.AI_MODEL_PRO || DEFAULT_MODEL_PRO;
+
+  // Build AI model config with optional per-task overrides
+  const aiModels: AIModelConfig = {
+    flash: flashModel,
+    pro: proModel,
+    // Task-specific overrides (optional)
+    research: process.env.AI_MODEL_RESEARCH || undefined,
+    agent: process.env.AI_MODEL_AGENT || undefined,
+    refine: process.env.AI_MODEL_REFINE || undefined,
+    metadata: process.env.AI_MODEL_METADATA || undefined,
+    image: process.env.AI_MODEL_IMAGE || undefined,
+    bulk: process.env.AI_MODEL_BULK || undefined,
+  };
 
   return {
     nodeEnv,
@@ -43,5 +88,6 @@ export const loadEnvConfig = (): AppConfig => {
     fileCleanupDelayHours: parseInt(process.env.FILE_CLEANUP_DELAY_HOURS || '24', 10),
     fileCleanupIntervalMinutes: parseInt(process.env.FILE_CLEANUP_INTERVAL_MINUTES || '60', 10),
     researchWebhookUrl: process.env.RESEARCH_WEBHOOK_URL || '',
+    aiModels,
   };
 };

@@ -1,6 +1,6 @@
 import { createGoogleGenerativeAI } from '@ai-sdk/google';
 import { loadEnvConfig } from '../../utils/env';
-import type { GeminiModel, ModelConfig } from './types';
+import type { ModelConfig } from './types';
 
 const config = loadEnvConfig();
 
@@ -9,38 +9,92 @@ export const google = createGoogleGenerativeAI({
   apiKey: config.geminiApiKey,
 });
 
-// Model identifiers for Gemini
-// Using 2.5 stable versions (gemini-3 is still in preview)
+// Get model names from centralized config
+const { aiModels } = config;
+
+// Model identifiers - loaded from env config with defaults
 export const MODELS = {
-  FLASH: 'gemini-2.5-flash' as const,
-  PRO: 'gemini-2.5-pro' as const,
+  FLASH: aiModels.flash,
+  PRO: aiModels.pro,
 } as const;
 
-// Default configurations per use case
-export const MODEL_CONFIGS: Record<string, ModelConfig> = {
-  // Fast operations - use Flash
-  refine: { model: MODELS.FLASH, temperature: 0.7, maxTokens: 8192 },
-  title: { model: MODELS.FLASH, temperature: 0.5, maxTokens: 512 },  // Lower temp for more reliable structured output
-  subject: { model: MODELS.FLASH, temperature: 0.5, maxTokens: 512 }, // Lower temp for more reliable structured output
-  excerpt: { model: MODELS.FLASH, temperature: 0.6, maxTokens: 512 },
-  previewText: { model: MODELS.FLASH, temperature: 0.6, maxTokens: 256 },
-  metadata: { model: MODELS.FLASH, temperature: 0.6, maxTokens: 1024 },
-  postDetails: { model: MODELS.FLASH, temperature: 0.8, maxTokens: 1024 },
-  articleContent: { model: MODELS.FLASH, temperature: 0.7, maxTokens: 8192 },
-  image: { model: MODELS.FLASH, temperature: 0.7, maxTokens: 1024 },
+/**
+ * Get the model name for a specific task.
+ * Checks for task-specific override first, then falls back to category default.
+ */
+function getModelForTask(task: string): string {
+  // Check for task-specific overrides
+  switch (task) {
+    case 'research':
+      return aiModels.research || aiModels.pro;
+    case 'agent':
+      return aiModels.agent || aiModels.pro;
+    case 'refine':
+    case 'articleContent':
+      return aiModels.refine || aiModels.flash;
+    case 'title':
+    case 'subject':
+    case 'excerpt':
+    case 'previewText':
+    case 'metadata':
+    case 'postDetails':
+      return aiModels.metadata || aiModels.flash;
+    case 'image':
+      return aiModels.image || aiModels.flash;
+    case 'bulkContent':
+      return aiModels.bulk || aiModels.pro;
+    default:
+      return aiModels.flash;
+  }
+}
 
-  // Complex reasoning - use Pro with thinking
-  research: { model: MODELS.PRO, temperature: 0.7, maxTokens: 4096, thinkingLevel: 'low' },
-  bulkContent: { model: MODELS.PRO, temperature: 0.7, maxTokens: 8192 },
-  agent: { model: MODELS.PRO, temperature: 0.7, maxTokens: 4096, thinkingLevel: 'medium' },
+// Task type for model selection
+export type ModelTask =
+  | 'refine'
+  | 'title'
+  | 'subject'
+  | 'excerpt'
+  | 'previewText'
+  | 'metadata'
+  | 'postDetails'
+  | 'articleContent'
+  | 'image'
+  | 'research'
+  | 'bulkContent'
+  | 'agent';
+
+// Default configurations per use case (temperature, tokens, thinking)
+const TASK_CONFIGS: Record<ModelTask, Omit<ModelConfig, 'model'> & { useProModel?: boolean }> = {
+  // Fast operations - use Flash by default
+  refine: { temperature: 0.7, maxTokens: 8192 },
+  title: { temperature: 0.5, maxTokens: 512 },
+  subject: { temperature: 0.5, maxTokens: 512 },
+  excerpt: { temperature: 0.6, maxTokens: 512 },
+  previewText: { temperature: 0.6, maxTokens: 256 },
+  metadata: { temperature: 0.6, maxTokens: 1024 },
+  postDetails: { temperature: 0.8, maxTokens: 1024 },
+  articleContent: { temperature: 0.7, maxTokens: 8192 },
+  image: { temperature: 0.7, maxTokens: 1024 },
+
+  // Complex reasoning - use Pro with thinking by default
+  research: { temperature: 0.7, maxTokens: 4096, thinkingLevel: 'low', useProModel: true },
+  bulkContent: { temperature: 0.7, maxTokens: 8192, useProModel: true },
+  agent: { temperature: 0.7, maxTokens: 4096, thinkingLevel: 'medium', useProModel: true },
 };
 
-// Default configuration (used as fallback)
-const DEFAULT_CONFIG: ModelConfig = { model: MODELS.FLASH, temperature: 0.7, maxTokens: 8192 };
-
 // Model selection strategy based on task complexity
-export function selectModel(task: keyof typeof MODEL_CONFIGS): ModelConfig {
-  return MODEL_CONFIGS[task] ?? DEFAULT_CONFIG;
+export function selectModel(task: ModelTask): ModelConfig {
+  const taskConfig = TASK_CONFIGS[task];
+  if (!taskConfig) {
+    // Fallback for unknown tasks
+    return { model: aiModels.flash, temperature: 0.7, maxTokens: 8192 };
+  }
+
+  const { useProModel, ...configWithoutFlag } = taskConfig;
+  return {
+    model: getModelForTask(task),
+    ...configWithoutFlag,
+  };
 }
 
 // Create model instance with configuration

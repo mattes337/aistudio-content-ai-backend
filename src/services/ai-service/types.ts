@@ -2,12 +2,14 @@ import { z } from 'zod/v3';
 
 // ============== Model Configuration ==============
 
+/** Known Gemini model names (for reference, not enforced) */
 export type GeminiModel = 'gemini-2.5-flash' | 'gemini-2.5-pro';
 
 export type ThinkingLevel = 'minimal' | 'low' | 'medium' | 'high';
 
 export interface ModelConfig {
-  model: GeminiModel;
+  /** Model name - configurable via environment variables */
+  model: string;
   temperature?: number;
   maxTokens?: number;
   thinkingLevel?: ThinkingLevel;
