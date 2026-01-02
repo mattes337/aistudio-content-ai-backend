@@ -277,20 +277,6 @@ data: {"type":"sources","sources":[...]}
 data: {"type":"done","response":"Complete response","steps":3}
 ```
 
-### Individual Metadata Endpoints
-
-These endpoints are kept for backwards compatibility. For new integrations, use `/api/ai/metadata`.
-
-| Endpoint | Purpose |
-|----------|---------|
-| `POST /api/ai/generate/title` | Generate title from content |
-| `POST /api/ai/generate/subject` | Generate newsletter subject |
-| `POST /api/ai/generate/metadata` | Generate SEO metadata (requires title) |
-| `POST /api/ai/generate/excerpt` | Generate excerpt |
-| `POST /api/ai/generate/preview-text` | Generate email preview |
-| `POST /api/ai/generate/post-details-v2` | Generate social post details |
-| `POST /api/ai/infer-metadata` | Auto-infer metadata by content type |
-
 ### Knowledge Base Endpoints
 
 #### POST `/api/ai/knowledge/search`
@@ -504,7 +490,11 @@ Common HTTP status codes:
 
 ## Changelog
 
-### v2.0.0 (Current)
+### v2.1.0 (Current)
+- Removed individual metadata endpoints (use unified `/api/ai/metadata` instead)
+- Simplified API surface for metadata generation
+
+### v2.0.0
 - Workflow-based architecture
 - Unified metadata endpoint with operations array
 - Configurable AI models via environment variables

@@ -112,48 +112,6 @@ export class AIController {
     }
   }
 
-  static async generateArticleTitle(req: Request, res: Response) {
-    try {
-      const { content } = req.body;
-      if (!content) {
-        return res.status(400).json({ message: 'Content is required' });
-      }
-      const title = await AIService.generateArticleTitle(content);
-      res.json({ title });
-    } catch (error) {
-      logger.error('Error generating article title:', error);
-      res.status(500).json({ message: 'Internal server error' });
-    }
-  }
-
-  static async generateArticleMetadata(req: Request, res: Response) {
-    try {
-      const { content } = req.body;
-      if (!content) {
-        return res.status(400).json({ message: 'Content is required' });
-      }
-      const metadata = await AIService.generateArticleMetadata(content);
-      res.json(metadata);
-    } catch (error) {
-      logger.error('Error generating article metadata:', error);
-      res.status(500).json({ message: 'Internal server error' });
-    }
-  }
-
-  static async generatePostDetails(req: Request, res: Response) {
-    try {
-      const { prompt, currentCaption } = req.body;
-      if (!prompt) {
-        return res.status(400).json({ message: 'Prompt is required' });
-      }
-      const details = await AIService.generatePostDetailsLegacy(prompt, currentCaption);
-      res.json(details);
-    } catch (error) {
-      logger.error('Error generating post details:', error);
-      res.status(500).json({ message: 'Internal server error' });
-    }
-  }
-
   static async generateImage(req: Request, res: Response) {
     try {
       const { prompt, aspectRatio } = req.body;
@@ -245,90 +203,6 @@ export class AIController {
     }
   }
 
-  static async generateTitle(req: Request, res: Response) {
-    try {
-      const { content } = req.body;
-      if (!content) {
-        return res.status(400).json({ message: 'Content is required' });
-      }
-      const result = await AIService.generateTitle(content);
-      res.json(result);
-    } catch (error) {
-      logger.error('Error generating title:', error);
-      res.status(500).json({ message: 'Internal server error' });
-    }
-  }
-
-  static async generateSubject(req: Request, res: Response) {
-    try {
-      const { content } = req.body;
-      if (!content) {
-        return res.status(400).json({ message: 'Content is required' });
-      }
-      const result = await AIService.generateSubject(content);
-      res.json(result);
-    } catch (error) {
-      logger.error('Error generating subject:', error);
-      res.status(500).json({ message: 'Internal server error' });
-    }
-  }
-
-  static async generateMetadata(req: Request, res: Response) {
-    try {
-      const { content, title } = req.body;
-      if (!content || !title) {
-        return res.status(400).json({ message: 'Content and title are required' });
-      }
-      const result = await AIService.generateMetadata(content, title);
-      res.json(result);
-    } catch (error) {
-      logger.error('Error generating metadata:', error);
-      res.status(500).json({ message: 'Internal server error' });
-    }
-  }
-
-  static async generateExcerpt(req: Request, res: Response) {
-    try {
-      const { content } = req.body;
-      if (!content) {
-        return res.status(400).json({ message: 'Content is required' });
-      }
-      const result = await AIService.generateExcerpt(content);
-      res.json(result);
-    } catch (error) {
-      logger.error('Error generating excerpt:', error);
-      res.status(500).json({ message: 'Internal server error' });
-    }
-  }
-
-  static async generatePreviewText(req: Request, res: Response) {
-    try {
-      const { content } = req.body;
-      if (!content) {
-        return res.status(400).json({ message: 'Content is required' });
-      }
-      const result = await AIService.generatePreviewText(content);
-      res.json(result);
-    } catch (error) {
-      logger.error('Error generating preview text:', error);
-      res.status(500).json({ message: 'Internal server error' });
-    }
-  }
-
-  static async generatePostDetailsNew(req: Request, res: Response) {
-    try {
-      const { prompt, currentCaption } = req.body;
-      if (!prompt) {
-        return res.status(400).json({ message: 'Prompt is required' });
-      }
-      const result = await AIService.generatePostDetails(prompt, currentCaption || '');
-      res.json(result);
-    } catch (error) {
-      logger.error('Error generating post details:', error);
-      res.status(500).json({ message: 'Internal server error' });
-    }
-  }
-
   /**
    * Generate image with optional type and bounds.
    *
@@ -401,23 +275,6 @@ export class AIController {
       res.json(result);
     } catch (error) {
       logger.error('Error editing image:', error);
-      res.status(500).json({ message: 'Internal server error' });
-    }
-  }
-
-  static async inferMetadata(req: Request, res: Response) {
-    try {
-      const { content, type } = req.body;
-      if (!content) {
-        return res.status(400).json({ message: 'Content is required' });
-      }
-      if (!type || !['article', 'post', 'newsletter'].includes(type)) {
-        return res.status(400).json({ message: 'Valid type (article, post, newsletter) is required' });
-      }
-      const result = await AIService.inferMetadata(content, type);
-      res.json(result);
-    } catch (error) {
-      logger.error('Error inferring metadata:', error);
       res.status(500).json({ message: 'Internal server error' });
     }
   }
