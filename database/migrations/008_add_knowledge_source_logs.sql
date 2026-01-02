@@ -2,7 +2,7 @@
 -- Description: Stores processing events for knowledge sources (sync, transformations, errors)
 
 CREATE TABLE IF NOT EXISTS knowledge_source_logs (
-    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     knowledge_source_id UUID NOT NULL REFERENCES knowledge_sources(id) ON DELETE CASCADE,
     event_type VARCHAR(50) NOT NULL,
     status VARCHAR(20) NOT NULL CHECK (status IN ('info', 'warning', 'error', 'success')),
