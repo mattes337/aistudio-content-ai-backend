@@ -20,6 +20,8 @@ export const serveUploadedFile = (req: Request, res: Response) => {
     // Set appropriate headers
     res.setHeader('Content-Type', getContentType(filePath));
     res.setHeader('Cache-Control', 'public, max-age=31536000'); // Cache for 1 year
+    res.setHeader('Cross-Origin-Resource-Policy', 'cross-origin'); // Allow cross-origin access for images
+    res.setHeader('Access-Control-Allow-Origin', '*'); // Allow any origin to load this resource
 
     // Send file
     res.sendFile(filePath);
