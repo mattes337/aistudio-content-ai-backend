@@ -153,6 +153,9 @@ export interface ContentWorkflow extends Workflow<'content'> {
 /** Supported image types */
 export type ImageType = 'photo' | 'illustration' | 'icon' | 'diagram' | 'art' | 'other';
 
+/** Image quality levels */
+export type ImageQuality = 'auto' | 'low' | 'medium' | 'high';
+
 /** Image dimensions/bounds */
 export interface ImageBounds {
   /** Width in pixels */
@@ -171,6 +174,10 @@ export interface ImageGenerateInput {
   imageType?: ImageType;
   /** Image dimensions/bounds */
   bounds?: ImageBounds;
+  /** Model to use for generation (overrides default) */
+  model?: string;
+  /** Quality level for generation */
+  quality?: ImageQuality;
 }
 
 /** Input for image editing */
@@ -185,6 +192,10 @@ export interface ImageEditInput {
   imageType?: ImageType;
   /** Output image dimensions/bounds */
   bounds?: ImageBounds;
+  /** Model to use for editing (overrides default) */
+  model?: string;
+  /** Quality level for editing */
+  quality?: ImageQuality;
 }
 
 export interface ImageWorkflow extends Workflow<'image'> {

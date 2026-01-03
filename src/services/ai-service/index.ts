@@ -62,13 +62,21 @@ import type {
 import type {
   ImageType,
   ImageBounds,
+  ImageQuality,
   MetadataOperation,
   MetadataInput,
   MetadataResults,
 } from './workflows/types';
 
 // Re-export workflow types for controller use
-export type { ImageType, ImageBounds, MetadataOperation, MetadataInput, MetadataResults } from './workflows/types';
+export type {
+  ImageType,
+  ImageBounds,
+  ImageQuality,
+  MetadataOperation,
+  MetadataInput,
+  MetadataResults,
+} from './workflows/types';
 
 // Import tools (for backwards compatibility export)
 export { agentTools, researchTools } from './tools';
@@ -249,6 +257,8 @@ export class AIService {
       imageType?: ImageType;
       bounds?: ImageBounds;
       aspectRatio?: string; // Legacy support
+      model?: string;
+      quality?: ImageQuality;
     }
   ): Promise<ImageGenerationResult> {
     const workflow = getImageWorkflow();
@@ -257,6 +267,8 @@ export class AIService {
       prompt,
       imageType: options?.imageType,
       bounds: options?.bounds ?? (options?.aspectRatio ? { aspectRatio: options.aspectRatio } : undefined),
+      model: options?.model,
+      quality: options?.quality,
     });
   }
 
@@ -267,6 +279,8 @@ export class AIService {
     options?: {
       imageType?: ImageType;
       bounds?: ImageBounds;
+      model?: string;
+      quality?: ImageQuality;
     }
   ): Promise<ImageEditResult> {
     const workflow = getImageWorkflow();
@@ -277,7 +291,19 @@ export class AIService {
       prompt,
       imageType: options?.imageType,
       bounds: options?.bounds,
+      model: options?.model,
+      quality: options?.quality,
     });
+  }
+
+  static async getImageModels() {
+    const workflow = getImageWorkflow();
+    if (!workflow) throw new Error('No image workflow available');
+    // Check if workflow has getModels method (ImageRouterWorkflow does)
+    if ('getModels' in workflow && typeof workflow.getModels === 'function') {
+      return workflow.getModels();
+    }
+    throw new Error('Image workflow does not support model listing');
   }
 
   // ============== Agent/Research ==============

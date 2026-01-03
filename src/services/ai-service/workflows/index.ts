@@ -23,7 +23,7 @@ export {
 export { BuiltinResearchWorkflow, WebhookResearchWorkflow } from './research';
 export { BuiltinMetadataWorkflow } from './metadata';
 export { BuiltinContentWorkflow } from './content';
-export { BuiltinImageWorkflow } from './image';
+export { BuiltinImageWorkflow, ImageRouterWorkflow } from './image';
 export { BuiltinBulkWorkflow } from './bulk';
 export { BuiltinTaskWorkflow } from './task';
 
@@ -32,7 +32,7 @@ import { WorkflowRegistry } from './registry';
 import { BuiltinResearchWorkflow, WebhookResearchWorkflow } from './research';
 import { BuiltinMetadataWorkflow } from './metadata';
 import { BuiltinContentWorkflow } from './content';
-import { BuiltinImageWorkflow } from './image';
+import { ImageRouterWorkflow } from './image';
 import { BuiltinBulkWorkflow } from './bulk';
 import { BuiltinTaskWorkflow } from './task';
 import logger from '../../../utils/logger';
@@ -61,8 +61,14 @@ export function initializeWorkflows(): void {
   // Content workflow
   WorkflowRegistry.register(new BuiltinContentWorkflow(), true);
 
-  // Image workflow
-  WorkflowRegistry.register(new BuiltinImageWorkflow(), true);
+  // Image workflow - use ImageRouter when available
+  const imageRouterWorkflow = new ImageRouterWorkflow();
+  if (imageRouterWorkflow.isAvailable()) {
+    WorkflowRegistry.register(imageRouterWorkflow, true);
+    logger.info('ImageRouter workflow is available and set as default for image generation');
+  } else {
+    logger.warn('IMAGEROUTER_API_KEY not configured - image generation will not be available');
+  }
 
   // Bulk workflow
   WorkflowRegistry.register(new BuiltinBulkWorkflow(), true);

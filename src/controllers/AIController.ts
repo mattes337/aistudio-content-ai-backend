@@ -216,7 +216,7 @@ export class AIController {
    */
   static async generateImageNew(req: Request, res: Response) {
     try {
-      const { prompt, imageType, bounds, aspectRatio } = req.body;
+      const { prompt, imageType, bounds, aspectRatio, model, quality } = req.body;
       if (!prompt) {
         return res.status(400).json({ message: 'Prompt is required' });
       }
@@ -229,10 +229,20 @@ export class AIController {
         });
       }
 
+      // Validate quality if provided
+      const validQualities = ['auto', 'low', 'medium', 'high'];
+      if (quality && !validQualities.includes(quality)) {
+        return res.status(400).json({
+          message: `Invalid quality. Valid values: ${validQualities.join(', ')}`,
+        });
+      }
+
       const result = await AIService.generateImage(prompt, {
         imageType,
         bounds,
         aspectRatio, // Legacy support
+        model,
+        quality,
       });
       res.json(result);
     } catch (error) {
@@ -255,7 +265,7 @@ export class AIController {
    */
   static async editImageNew(req: Request, res: Response) {
     try {
-      const { base64ImageData, mimeType, prompt, imageType, bounds } = req.body;
+      const { base64ImageData, mimeType, prompt, imageType, bounds, model, quality } = req.body;
       if (!base64ImageData || !mimeType || !prompt) {
         return res.status(400).json({ message: 'Base64 image data, mime type, and prompt are required' });
       }
@@ -268,13 +278,41 @@ export class AIController {
         });
       }
 
+      // Validate quality if provided
+      const validQualities = ['auto', 'low', 'medium', 'high'];
+      if (quality && !validQualities.includes(quality)) {
+        return res.status(400).json({
+          message: `Invalid quality. Valid values: ${validQualities.join(', ')}`,
+        });
+      }
+
       const result = await AIService.editImage(base64ImageData, mimeType, prompt, {
         imageType,
         bounds,
+        model,
+        quality,
       });
       res.json(result);
     } catch (error) {
       logger.error('Error editing image:', error);
+      res.status(500).json({ message: 'Internal server error' });
+    }
+  }
+
+  /**
+   * Get available image generation models.
+   *
+   * GET /api/ai/image/models
+   */
+  static async getImageModels(_req: Request, res: Response) {
+    try {
+      const models = await AIService.getImageModels();
+      res.json({
+        models,
+        qualityOptions: ['auto', 'low', 'medium', 'high'],
+      });
+    } catch (error) {
+      logger.error('Error fetching image models:', error);
       res.status(500).json({ message: 'Internal server error' });
     }
   }

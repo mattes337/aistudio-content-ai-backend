@@ -5,3 +5,4 @@
  */
 
 export { BuiltinImageWorkflow } from './BuiltinImageWorkflow';
+export { ImageRouterWorkflow } from './ImageRouterWorkflow';

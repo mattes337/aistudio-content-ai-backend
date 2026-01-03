@@ -24,6 +24,20 @@ export interface AIModelConfig {
   bulk?: string;
 }
 
+/**
+ * ImageRouter configuration for image generation
+ */
+export interface ImageRouterConfig {
+  /** API key for ImageRouter.io */
+  apiKey: string;
+  /** Default model for image generation (e.g., 'flux-1.1-pro') */
+  model: string;
+  /** Base URL for the API */
+  baseUrl: string;
+  /** Only allow free models (default: true) */
+  freeOnly: boolean;
+}
+
 export interface AppConfig {
   nodeEnv: string;
   port: number;
@@ -44,11 +58,17 @@ export interface AppConfig {
   researchWebhookUrl: string;
   /** AI model configuration */
   aiModels: AIModelConfig;
+  /** ImageRouter configuration for image generation */
+  imageRouter: ImageRouterConfig;
 }
 
 // Default model names
 const DEFAULT_MODEL_FLASH = 'gemini-2.5-flash';
 const DEFAULT_MODEL_PRO = 'gemini-2.5-pro';
+
+// ImageRouter defaults
+const DEFAULT_IMAGEROUTER_BASE_URL = 'https://api.imagerouter.io/v1/openai';
+const DEFAULT_IMAGEROUTER_MODEL = 'openai/gpt-image-1.5:free';
 
 export const loadEnvConfig = (): AppConfig => {
   const nodeEnv = process.env.NODE_ENV || 'development';
@@ -89,5 +109,11 @@ export const loadEnvConfig = (): AppConfig => {
     fileCleanupIntervalMinutes: parseInt(process.env.FILE_CLEANUP_INTERVAL_MINUTES || '60', 10),
     researchWebhookUrl: process.env.RESEARCH_WEBHOOK_URL || '',
     aiModels,
+    imageRouter: {
+      apiKey: process.env.IMAGEROUTER_API_KEY || '',
+      model: process.env.IMAGEROUTER_MODEL || DEFAULT_IMAGEROUTER_MODEL,
+      baseUrl: process.env.IMAGEROUTER_BASE_URL || DEFAULT_IMAGEROUTER_BASE_URL,
+      freeOnly: process.env.IMAGEROUTER_FREE_ONLY !== 'false', // Default true
+    },
   };
 };

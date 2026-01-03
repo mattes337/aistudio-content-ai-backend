@@ -301,9 +301,66 @@ router.post('/refine-content/stream', AIController.refineContentStream);
 
 /**
  * @swagger
+ * /api/ai/image/models:
+ *   get:
+ *     summary: Get available image generation models
+ *     tags: [AI Generation]
+ *     security:
+ *       - bearerAuth: []
+ *     responses:
+ *       200:
+ *         description: List of available models
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 models:
+ *                   type: array
+ *                   items:
+ *                     type: object
+ *                     properties:
+ *                       id:
+ *                         type: string
+ *                         description: Model ID to use in generation requests
+ *                       name:
+ *                         type: string
+ *                         description: Display name
+ *                       provider:
+ *                         type: string
+ *                         description: Model provider
+ *                       isFree:
+ *                         type: boolean
+ *                         description: Whether the model is free to use
+ *                       supportsEdit:
+ *                         type: boolean
+ *                         description: Whether the model supports image editing
+ *                       supportsQuality:
+ *                         type: boolean
+ *                         description: Whether the model supports quality parameter
+ *                       sizes:
+ *                         type: array
+ *                         items:
+ *                           type: string
+ *                         description: Supported image sizes
+ *                       pricePerImage:
+ *                         type: number
+ *                         description: Average price per image in USD
+ *                 qualityOptions:
+ *                   type: array
+ *                   items:
+ *                     type: string
+ *                   description: Available quality options
+ *       500:
+ *         description: Internal server error
+ */
+router.get('/image/models', AIController.getImageModels);
+
+/**
+ * @swagger
  * /api/ai/generate/image-v2:
  *   post:
- *     summary: Generate an image using new Gemini SDK
+ *     summary: Generate an image using ImageRouter.io
  *     tags: [AI Generation]
  *     security:
  *       - bearerAuth: []
@@ -318,11 +375,34 @@ router.post('/refine-content/stream', AIController.refineContentStream);
  *               prompt:
  *                 type: string
  *                 description: Image generation prompt
+ *               imageType:
+ *                 type: string
+ *                 enum: ['photo', 'illustration', 'icon', 'diagram', 'art', 'other']
+ *                 description: Type of image to generate
+ *               bounds:
+ *                 type: object
+ *                 properties:
+ *                   width:
+ *                     type: number
+ *                     description: Width in pixels
+ *                   height:
+ *                     type: number
+ *                     description: Height in pixels
+ *                   aspectRatio:
+ *                     type: string
+ *                     description: Aspect ratio (e.g., '16:9', '1:1')
  *               aspectRatio:
  *                 type: string
  *                 enum: ['1:1', '16:9', '9:16']
- *                 default: '1:1'
- *                 description: Target aspect ratio
+ *                 description: Legacy - use bounds.aspectRatio instead
+ *               model:
+ *                 type: string
+ *                 description: ImageRouter model to use (overrides default)
+ *               quality:
+ *                 type: string
+ *                 enum: ['auto', 'low', 'medium', 'high']
+ *                 default: 'auto'
+ *                 description: Image quality level
  *     responses:
  *       200:
  *         description: Image generated successfully
@@ -346,7 +426,7 @@ router.post('/generate/image-v2', AIController.generateImageNew);
  * @swagger
  * /api/ai/edit/image-v2:
  *   post:
- *     summary: Edit an image using new Gemini SDK
+ *     summary: Edit an image using ImageRouter.io
  *     tags: [AI Generation]
  *     security:
  *       - bearerAuth: []
@@ -367,6 +447,30 @@ router.post('/generate/image-v2', AIController.generateImageNew);
  *               prompt:
  *                 type: string
  *                 description: Edit instruction
+ *               imageType:
+ *                 type: string
+ *                 enum: ['photo', 'illustration', 'icon', 'diagram', 'art', 'other']
+ *                 description: Type of output image desired
+ *               bounds:
+ *                 type: object
+ *                 properties:
+ *                   width:
+ *                     type: number
+ *                     description: Width in pixels
+ *                   height:
+ *                     type: number
+ *                     description: Height in pixels
+ *                   aspectRatio:
+ *                     type: string
+ *                     description: Aspect ratio (e.g., '16:9', '1:1')
+ *               model:
+ *                 type: string
+ *                 description: ImageRouter model to use (overrides default)
+ *               quality:
+ *                 type: string
+ *                 enum: ['auto', 'low', 'medium', 'high']
+ *                 default: 'auto'
+ *                 description: Image quality level
  *     responses:
  *       200:
  *         description: Image edited successfully
