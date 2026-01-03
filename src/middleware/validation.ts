@@ -405,10 +405,10 @@ export const validateInferMetadata = validateBody(inferMetadataSchema);
 
 // Lenient validation exports - logs unknown properties but accepts requests
 export const validateChannelLenient = validateBodyLenient(channelSchema, ['name', 'url', 'type', 'platform_api', 'data']);
-export const validateMediaAssetLenient = validateBodyLenient(mediaAssetSchema, ['title', 'type', 'file_path', 'data']);
-export const validateArticleLenient = validateBodyLenient(articleSchema, ['title', 'status', 'publish_date', 'channel_id', 'data']);
-export const validatePostLenient = validateBodyLenient(postSchema, ['status', 'publish_date', 'platform', 'linked_article_id', 'data']);
-export const validateNewsletterLenient = validateBodyLenient(newsletterSchema, ['subject', 'status', 'publish_date', 'channel_id', 'data']);
+export const validateMediaAssetLenient = validateBodyLenient(mediaAssetSchema, ['title', 'type', 'file_path', 'data', 'image_url', 'article_id', 'newsletter_id']);
+export const validateArticleLenient = validateBodyLenient(articleSchema, ['title', 'status', 'publish_date', 'channel_id', 'data', 'feature_image_id']);
+export const validatePostLenient = validateBodyLenient(postSchema, ['status', 'publish_date', 'platform', 'linked_article_id', 'data', 'preview_file_path']);
+export const validateNewsletterLenient = validateBodyLenient(newsletterSchema, ['subject', 'status', 'publish_date', 'channel_id', 'data', 'feature_image_id']);
 export const validateKnowledgeSourceLenient = validateBodyLenient(knowledgeSourceSchema, ['name', 'type', 'source_origin', 'folder_path', 'data']);
 export const validateGenerateArticleLenient = validateBodyLenient(generateArticleSchema, ['prompt', 'currentContent']);
 export const validateGenerateTitleLenient = validateBodyLenient(generateTitleSchema, ['content']);

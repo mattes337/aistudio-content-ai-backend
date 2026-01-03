@@ -94,6 +94,62 @@ router.post('/upload', authenticateToken, uploadSingle('file'), MediaAssetContro
 
 /**
  * @swagger
+ * /api/media-assets/upload-base64:
+ *   post:
+ *     summary: Upload a base64-encoded media asset (for AI-generated images)
+ *     tags: [Media Assets]
+ *     security:
+ *       - bearerAuth: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - image_url
+ *             properties:
+ *               image_url:
+ *                 type: string
+ *                 description: Base64 data URL (e.g., "data:image/png;base64,...") or raw base64 string
+ *               title:
+ *                 type: string
+ *                 description: Title for the media asset
+ *               type:
+ *                 type: string
+ *                 description: Media type (defaults to "generated_image")
+ *               data:
+ *                 type: object
+ *                 description: Additional metadata
+ *                 properties:
+ *                   description:
+ *                     type: string
+ *                   prompt:
+ *                     type: string
+ *               article_id:
+ *                 type: string
+ *                 format: uuid
+ *                 description: If provided, automatically sets this image as the article's feature_image
+ *               newsletter_id:
+ *                 type: string
+ *                 format: uuid
+ *                 description: If provided, automatically sets this image as the newsletter's feature_image
+ *     responses:
+ *       201:
+ *         description: Media asset created successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/MediaAsset'
+ *       400:
+ *         description: Invalid base64 data
+ *       500:
+ *         description: Internal server error
+ */
+router.post('/upload-base64', MediaAssetController.uploadBase64MediaAsset);
+
+/**
+ * @swagger
  * /api/media-assets/{assetId}:
  *   get:
  *     summary: Get media asset by ID

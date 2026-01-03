@@ -504,9 +504,12 @@ export class DatabaseService {
 
   static async getArticleById(id: string): Promise<Article | null> {
     const query = `
-      SELECT a.*, c.name as channel_name 
-      FROM articles a 
+      SELECT a.*, c.name as channel_name,
+             CASE WHEN ma.file_path IS NOT NULL THEN CONCAT('/api/files/', ma.file_path) END as feature_image_url,
+             CASE WHEN ma.file_path IS NOT NULL THEN CONCAT('/api/files/', REGEXP_REPLACE(ma.file_path, '(\\.[^.]+)$', '_thumb\\1')) END as feature_image_thumbnail_url
+      FROM articles a
       JOIN channels c ON a.channel_id = c.id
+      LEFT JOIN media_assets ma ON a.feature_image_id = ma.id
       WHERE a.id = $1
     `;
     const result = await pool.query(query, [id]);
@@ -680,8 +683,10 @@ export class DatabaseService {
 
   static async getPostById(id: string): Promise<Post | null> {
     const query = `
-      SELECT p.*, a.title as linked_article_title 
-      FROM posts p 
+      SELECT p.*, a.title as linked_article_title,
+             CASE WHEN p.preview_file_path IS NOT NULL THEN CONCAT('/api/files/', p.preview_file_path) END as preview_image_url,
+             CASE WHEN p.preview_file_path IS NOT NULL THEN CONCAT('/api/files/', REGEXP_REPLACE(p.preview_file_path, '(\\.[^.]+)$', '_thumb\\1')) END as preview_image_thumbnail_url
+      FROM posts p
       LEFT JOIN articles a ON p.linked_article_id = a.id
       WHERE p.id = $1
     `;
@@ -1313,7 +1318,16 @@ export class DatabaseService {
   }
 
   static async getNewsletterById(id: string): Promise<any | null> {
-    const result = await pool.query('SELECT * FROM newsletters WHERE id = $1', [id]);
+    const query = `
+      SELECT n.*, c.name as channel_name,
+             CASE WHEN ma.file_path IS NOT NULL THEN CONCAT('/api/files/', ma.file_path) END as feature_image_url,
+             CASE WHEN ma.file_path IS NOT NULL THEN CONCAT('/api/files/', REGEXP_REPLACE(ma.file_path, '(\\.[^.]+)$', '_thumb\\1')) END as feature_image_thumbnail_url
+      FROM newsletters n
+      LEFT JOIN channels c ON n.channel_id = c.id
+      LEFT JOIN media_assets ma ON n.feature_image_id = ma.id
+      WHERE n.id = $1
+    `;
+    const result = await pool.query(query, [id]);
     return result.rows[0] || null;
   }
 

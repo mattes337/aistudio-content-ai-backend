@@ -4,6 +4,8 @@ import type { CreateMediaAssetRequest, UpdateMediaAssetRequest, MediaAssetQueryO
 import logger from '../utils/logger';
 import { getFileUrl } from '../utils/fileUpload';
 import { createThumbnail, getThumbnailUrl } from '../utils/thumbnail';
+import path from 'path';
+import fs from 'fs';
 
 // UUID validation regex
 const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
@@ -65,6 +67,11 @@ export class MediaAssetController {
 
   static async createMediaAsset(req: Request, res: Response) {
     try {
+      // Check if this is a base64 upload request (has image_url instead of file_path)
+      if (req.body.image_url && !req.body.file_path) {
+        return MediaAssetController.uploadBase64MediaAsset(req, res);
+      }
+
       const assetData: CreateMediaAssetRequest = req.body;
       const asset = await DatabaseService.createMediaAsset(assetData);
       res.status(201).json(asset);
@@ -110,6 +117,101 @@ export class MediaAssetController {
       res.status(201).json(assetWithUrl);
     } catch (error) {
       logger.error('Error uploading media asset:', error);
+      res.status(500).json({ message: 'Internal server error' });
+    }
+  }
+
+  static async uploadBase64MediaAsset(req: Request, res: Response) {
+    try {
+      const { image_url, title, type, data, article_id, newsletter_id } = req.body;
+
+      if (!image_url) {
+        return res.status(400).json({ message: 'image_url is required' });
+      }
+
+      // Validate media type - use generic_image if invalid or not provided
+      const validTypes = ['instagram_post', 'article_feature', 'article_inline', 'icon', 'generic_image'];
+      const mediaType = validTypes.includes(type) ? type : 'generic_image';
+
+      // Extract base64 data from data URL or use raw base64
+      let base64Data: string;
+      let mimeType = 'image/png';
+
+      if (image_url.startsWith('data:')) {
+        const matches = image_url.match(/^data:([^;]+);base64,(.+)$/);
+        if (!matches) {
+          return res.status(400).json({ message: 'Invalid base64 data URL format' });
+        }
+        mimeType = matches[1];
+        base64Data = matches[2];
+      } else {
+        base64Data = image_url;
+      }
+
+      // Determine file extension from mime type
+      const extMap: Record<string, string> = {
+        'image/png': '.png',
+        'image/jpeg': '.jpg',
+        'image/jpg': '.jpg',
+        'image/gif': '.gif',
+        'image/webp': '.webp',
+      };
+      const ext = extMap[mimeType] || '.png';
+
+      // Generate unique filename
+      const timestamp = Date.now().toString(36);
+      const random = Math.random().toString(36).substring(2, 6);
+      const filename = `generated-${timestamp}-${random}${ext}`;
+
+      // Save to uploads directory
+      const uploadsDir = path.join(__dirname, '../../uploads');
+      if (!fs.existsSync(uploadsDir)) {
+        fs.mkdirSync(uploadsDir, { recursive: true });
+      }
+
+      const filePath = path.join(uploadsDir, filename);
+      const buffer = Buffer.from(base64Data, 'base64');
+      fs.writeFileSync(filePath, buffer);
+
+      // Create thumbnail
+      const thumbnailFilename = await createThumbnail(filename);
+
+      // Create media asset record
+      const assetData: CreateMediaAssetRequest = {
+        title: title || 'Generated Image',
+        type: mediaType,
+        file_path: filename,
+        data: {
+          ...data,
+          mimeType,
+          size: buffer.length,
+          thumbnailPath: thumbnailFilename,
+          generatedAt: new Date().toISOString(),
+        },
+      };
+
+      const asset = await DatabaseService.createMediaAsset(assetData);
+
+      // If article_id or newsletter_id provided, update the feature_image_id
+      if (article_id) {
+        await DatabaseService.updateArticle({ id: article_id, feature_image_id: asset.id });
+        logger.info(`[MediaAsset] Linked image ${asset.id} to article ${article_id}`);
+      }
+      if (newsletter_id) {
+        await DatabaseService.updateNewsletter({ id: newsletter_id, feature_image_id: asset.id });
+        logger.info(`[MediaAsset] Linked image ${asset.id} to newsletter ${newsletter_id}`);
+      }
+
+      const assetWithUrl = {
+        ...asset,
+        url: getFileUrl(asset.file_path),
+        thumbnail_url: getThumbnailUrl(asset.file_path),
+      };
+
+      logger.info(`[MediaAsset] Saved generated image: ${filename} (${buffer.length} bytes)`);
+      res.status(201).json(assetWithUrl);
+    } catch (error) {
+      logger.error('Error uploading base64 media asset:', error);
       res.status(500).json({ message: 'Internal server error' });
     }
   }

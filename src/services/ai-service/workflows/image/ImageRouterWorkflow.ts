@@ -34,6 +34,9 @@ function buildImagePrompt(basePrompt: string, imageType?: ImageType): string {
   return `Generate ${typeDescriptions[imageType]}. Description: ${basePrompt}`;
 }
 
+/** Maximum prompt length for ImageRouter API */
+const MAX_PROMPT_LENGTH = 512;
+
 /**
  * Convert ImageBounds to ImageRouter size string
  */
@@ -77,6 +80,8 @@ export interface ImageRouterModel {
   isFree: boolean;
   supportsEdit: boolean;
   supportsQuality: boolean;
+  /** If true, this model only supports editing (requires input image), not text-to-image generation */
+  isEditOnly: boolean;
   sizes?: string[];
   pricePerImage?: number;
 }
@@ -103,6 +108,11 @@ interface ImageRouterModelsResponse {
   };
 }
 
+/** Cached model sizes - maps model ID to supported sizes */
+let modelSizesCache: Map<string, string[]> | null = null;
+let modelSizesCacheTime = 0;
+const MODEL_CACHE_TTL = 5 * 60 * 1000; // 5 minutes
+
 /**
  * ImageRouter workflow for image generation via ImageRouter.io API
  */
@@ -122,6 +132,73 @@ export class ImageRouterWorkflow implements ImageWorkflow {
     this.baseUrl = config.imageRouter.baseUrl;
     this.defaultModel = config.imageRouter.model;
     this.freeOnly = config.imageRouter.freeOnly;
+  }
+
+  /**
+   * Get supported sizes for a specific model
+   */
+  private async getModelSizes(modelId: string): Promise<string[] | undefined> {
+    // Check cache
+    if (modelSizesCache && Date.now() - modelSizesCacheTime < MODEL_CACHE_TTL) {
+      return modelSizesCache.get(modelId);
+    }
+
+    // Fetch fresh model data
+    try {
+      const response = await fetch('https://api.imagerouter.io/v1/models?type=image', {
+        headers: { Authorization: `Bearer ${this.apiKey}` },
+      });
+
+      if (!response.ok) return undefined;
+
+      const data = (await response.json()) as ImageRouterModelsResponse;
+      modelSizesCache = new Map();
+      modelSizesCacheTime = Date.now();
+
+      for (const [id, info] of Object.entries(data)) {
+        if (info.sizes) {
+          modelSizesCache.set(id, info.sizes);
+        }
+      }
+
+      return modelSizesCache.get(modelId);
+    } catch {
+      return undefined;
+    }
+  }
+
+  /**
+   * Find best matching size from model's supported sizes
+   */
+  private findBestSize(requestedSize: string, supportedSizes: string[]): string {
+    // If requested size is supported, use it
+    if (supportedSizes.includes(requestedSize)) {
+      return requestedSize;
+    }
+
+    // Parse requested dimensions
+    const [reqW, reqH] = requestedSize.split('x').map(Number);
+    const reqRatio = reqW / reqH;
+
+    // Find closest matching size by aspect ratio
+    let bestSize = supportedSizes[0];
+    let bestRatioDiff = Infinity;
+
+    for (const size of supportedSizes) {
+      if (size === 'auto') continue;
+      const [w, h] = size.split('x').map(Number);
+      if (isNaN(w) || isNaN(h)) continue;
+
+      const ratio = w / h;
+      const ratioDiff = Math.abs(ratio - reqRatio);
+
+      if (ratioDiff < bestRatioDiff) {
+        bestRatioDiff = ratioDiff;
+        bestSize = size;
+      }
+    }
+
+    return bestSize;
   }
 
   isAvailable(): boolean {
@@ -149,6 +226,17 @@ export class ImageRouterWorkflow implements ImageWorkflow {
     const data = (await response.json()) as ImageRouterModelsResponse;
     const models: ImageRouterModel[] = [];
 
+    // Models that are image processing/editing only, not text-to-image generation
+    const editOnlyPatterns = [
+      'blur-background',
+      'remove-background',
+      'erase-foreground',
+      'enhance',
+      'upscale',
+      'colorize',
+      'deblur',
+    ];
+
     for (const [modelId, modelInfo] of Object.entries(data)) {
       // Skip non-image models
       if (!modelInfo.output?.includes('image')) continue;
@@ -157,6 +245,10 @@ export class ImageRouterWorkflow implements ImageWorkflow {
 
       // Filter by freeOnly config
       if (this.freeOnly && !isFree) continue;
+
+      // Check if this is an edit-only model (requires input image, not text-to-image)
+      const modelName = modelId.split('/').pop()?.replace(/:.*$/, '').toLowerCase() || '';
+      const isEditOnly = editOnlyPatterns.some((pattern) => modelName.includes(pattern));
 
       // Get pricing from first provider
       const firstProvider = modelInfo.providers?.[0];
@@ -182,13 +274,17 @@ export class ImageRouterWorkflow implements ImageWorkflow {
         isFree,
         supportsEdit: modelInfo.supported_params?.edit ?? false,
         supportsQuality: modelInfo.supported_params?.quality ?? false,
+        isEditOnly,
         sizes: modelInfo.sizes,
         pricePerImage,
       });
     }
 
-    // Sort: free models first, then by name
+    // Sort: generation models first, then free models, then by name
     models.sort((a, b) => {
+      // Generation models before edit-only models
+      if (a.isEditOnly !== b.isEditOnly) return a.isEditOnly ? 1 : -1;
+      // Free models first within each category
       if (a.isFree !== b.isFree) return a.isFree ? -1 : 1;
       return a.name.localeCompare(b.name);
     });
@@ -213,7 +309,31 @@ export class ImageRouterWorkflow implements ImageWorkflow {
       if (effectiveSystemPrompt) {
         enhancedPrompt = `${effectiveSystemPrompt}. ${enhancedPrompt}`;
       }
-      const size = boundsToSize(bounds);
+
+      // Truncate prompt to max length (some models have 512 char limit)
+      if (enhancedPrompt.length > MAX_PROMPT_LENGTH) {
+        logger.warn(`[ImageRouter] Truncating prompt from ${enhancedPrompt.length} to ${MAX_PROMPT_LENGTH} chars`);
+        enhancedPrompt = enhancedPrompt.substring(0, MAX_PROMPT_LENGTH);
+      }
+
+      // Get requested size and validate against model's supported sizes
+      let size = boundsToSize(bounds);
+
+      // Free models are ALWAYS limited to 1024x1024 regardless of what the API says
+      const isFreeModel = effectiveModel.endsWith(':free');
+      if (isFreeModel && size && size !== '1024x1024') {
+        logger.info(`[ImageRouter] Free model ${effectiveModel} - forcing size to 1024x1024 (was ${size})`);
+        size = '1024x1024';
+      } else if (size) {
+        const supportedSizes = await this.getModelSizes(effectiveModel);
+        if (supportedSizes && supportedSizes.length > 0) {
+          const originalSize = size;
+          size = this.findBestSize(size, supportedSizes);
+          if (size !== originalSize) {
+            logger.info(`[ImageRouter] Mapped size ${originalSize} to ${size} for model ${effectiveModel}`);
+          }
+        }
+      }
 
       const requestBody: Record<string, unknown> = {
         model: effectiveModel,
@@ -243,7 +363,10 @@ export class ImageRouterWorkflow implements ImageWorkflow {
 
       const result = (await response.json()) as ImageRouterGenerationResponse;
 
+      logger.debug(`[ImageRouter] Response: ${JSON.stringify(result).substring(0, 500)}`);
+
       if (!result.data?.[0]?.b64_json) {
+        logger.error(`[ImageRouter] No b64_json in response: ${JSON.stringify(result)}`);
         throw new Error('No image data in ImageRouter response');
       }
 
@@ -274,7 +397,24 @@ export class ImageRouterWorkflow implements ImageWorkflow {
         editPrompt += `. The result should be ${imageType === 'photo' ? 'a realistic photograph' : `a ${imageType}`}.`;
       }
 
-      const size = boundsToSize(bounds);
+      // Get requested size and validate against model's supported sizes
+      let size = boundsToSize(bounds);
+
+      // Free models are ALWAYS limited to 1024x1024 regardless of what the API says
+      const isFreeModel = effectiveModel.endsWith(':free');
+      if (isFreeModel && size && size !== '1024x1024') {
+        logger.info(`[ImageRouter] Free model ${effectiveModel} - forcing size to 1024x1024 (was ${size})`);
+        size = '1024x1024';
+      } else if (size) {
+        const supportedSizes = await this.getModelSizes(effectiveModel);
+        if (supportedSizes && supportedSizes.length > 0) {
+          const originalSize = size;
+          size = this.findBestSize(size, supportedSizes);
+          if (size !== originalSize) {
+            logger.info(`[ImageRouter] Mapped size ${originalSize} to ${size} for model ${effectiveModel}`);
+          }
+        }
+      }
 
       // For edit, we need to use FormData to send the image
       const formData = new FormData();

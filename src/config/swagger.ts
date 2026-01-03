@@ -409,14 +409,6 @@ const options = {
               type: 'string',
               description: 'Article content'
             },
-            title_image_url: {
-              type: 'string',
-              description: 'URL of the title image'
-            },
-            title_image_alt: {
-              type: 'string',
-              description: 'Alt text for the title image'
-            },
             inline_images: {
               type: 'array',
               items: {
@@ -463,6 +455,19 @@ const options = {
             channel_id: {
               type: 'string',
               description: 'Channel ID'
+            },
+            feature_image_id: {
+              type: 'string',
+              format: 'uuid',
+              description: 'Feature image media asset ID'
+            },
+            feature_image_url: {
+              type: 'string',
+              description: 'URL of the feature image'
+            },
+            feature_image_thumbnail_url: {
+              type: 'string',
+              description: 'URL of the feature image thumbnail'
             },
             created_at: {
               type: 'string',
@@ -526,14 +531,6 @@ const options = {
               type: 'string',
               description: 'Article content'
             },
-            title_image_url: {
-              type: 'string',
-              description: 'URL of the title image'
-            },
-            title_image_alt: {
-              type: 'string',
-              description: 'Alt text for the title image'
-            },
             inline_images: {
               type: 'array',
               items: {
@@ -580,6 +577,11 @@ const options = {
             channel_id: {
               type: 'string',
               description: 'Channel ID'
+            },
+            feature_image_id: {
+              type: 'string',
+              format: 'uuid',
+              description: 'Feature image media asset ID'
             }
           }
         },
@@ -594,14 +596,6 @@ const options = {
               type: 'string',
               description: 'Article content'
             },
-            title_image_url: {
-              type: 'string',
-              description: 'URL of the title image'
-            },
-            title_image_alt: {
-              type: 'string',
-              description: 'Alt text for the title image'
-            },
             inline_images: {
               type: 'array',
               items: {
@@ -648,6 +642,11 @@ const options = {
             channel_id: {
               type: 'string',
               description: 'Channel ID'
+            },
+            feature_image_id: {
+              type: 'string',
+              format: 'uuid',
+              description: 'Feature image media asset ID'
             }
           }
         },
@@ -725,6 +724,18 @@ const options = {
             linked_article_id: {
               type: 'string',
               description: 'Linked article ID'
+            },
+            preview_file_path: {
+              type: 'string',
+              description: 'Path to the preview image file'
+            },
+            preview_image_url: {
+              type: 'string',
+              description: 'URL of the preview image'
+            },
+            preview_image_thumbnail_url: {
+              type: 'string',
+              description: 'URL of the preview image thumbnail'
             },
             created_at: {
               type: 'string',
@@ -814,6 +825,10 @@ const options = {
             linked_article_id: {
               type: 'string',
               description: 'Linked article ID'
+            },
+            preview_file_path: {
+              type: 'string',
+              description: 'Path to the preview image file'
             }
           }
         },
@@ -887,6 +902,10 @@ const options = {
             linked_article_id: {
               type: 'string',
               description: 'Linked article ID'
+            },
+            preview_file_path: {
+              type: 'string',
+              description: 'Path to the preview image file'
             }
           }
         },
@@ -1119,10 +1138,6 @@ const options = {
               type: 'string',
               description: 'Channel ID this newsletter belongs to'
             },
-            header_image_url: {
-              type: 'string',
-              description: 'URL to newsletter header image'
-            },
             preview_text: {
               type: 'string',
               description: 'Preview text shown in email clients'
@@ -1135,6 +1150,19 @@ const options = {
             recipient_count: {
               type: 'integer',
               description: 'Number of recipients this newsletter was sent to'
+            },
+            feature_image_id: {
+              type: 'string',
+              format: 'uuid',
+              description: 'Feature image media asset ID'
+            },
+            feature_image_url: {
+              type: 'string',
+              description: 'URL of the feature image'
+            },
+            feature_image_thumbnail_url: {
+              type: 'string',
+              description: 'URL of the feature image thumbnail'
             },
             created_at: {
               type: 'string',
@@ -1175,10 +1203,6 @@ const options = {
               type: 'string',
               description: 'Channel ID this newsletter belongs to'
             },
-            header_image_url: {
-              type: 'string',
-              description: 'URL to newsletter header image'
-            },
             preview_text: {
               type: 'string',
               description: 'Preview text shown in email clients'
@@ -1186,6 +1210,11 @@ const options = {
             recipient_count: {
               type: 'integer',
               description: 'Number of recipients this newsletter was sent to'
+            },
+            feature_image_id: {
+              type: 'string',
+              format: 'uuid',
+              description: 'Feature image media asset ID'
             }
           }
         },
@@ -1215,10 +1244,6 @@ const options = {
               type: 'string',
               description: 'Channel ID this newsletter belongs to'
             },
-            header_image_url: {
-              type: 'string',
-              description: 'URL to newsletter header image'
-            },
             preview_text: {
               type: 'string',
               description: 'Preview text shown in email clients'
@@ -1231,6 +1256,11 @@ const options = {
             recipient_count: {
               type: 'integer',
               description: 'Number of recipients this newsletter was sent to'
+            },
+            feature_image_id: {
+              type: 'string',
+              format: 'uuid',
+              description: 'Feature image media asset ID'
             }
           }
         },
