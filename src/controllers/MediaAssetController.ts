@@ -3,7 +3,7 @@ import { DatabaseService } from '../services/DatabaseService';
 import type { CreateMediaAssetRequest, UpdateMediaAssetRequest, MediaAssetQueryOptions, MediaType, FileStatus } from '../models/MediaAsset';
 import logger from '../utils/logger';
 import { getFileUrl } from '../utils/fileUpload';
-import { createThumbnail, getThumbnailUrl } from '../utils/thumbnail';
+import { createThumbnail, getThumbnailUrl, deleteThumbnail } from '../utils/thumbnail';
 import path from 'path';
 import fs from 'fs';
 
@@ -250,10 +250,30 @@ export class MediaAssetController {
         return res.status(400).json({ message: 'Invalid asset ID format. Expected UUID.' });
       }
 
-      const success = await DatabaseService.deleteMediaAsset(assetId);
+      // Soft delete in database (sets file_status='deleted')
+      // The row is kept so the processor can sync the deletion to WordPress
+      const deletedAsset = await DatabaseService.deleteMediaAsset(assetId);
 
-      if (!success) {
+      if (!deletedAsset) {
         return res.status(404).json({ message: 'Media asset not found' });
+      }
+
+      // Delete the actual files from disk
+      const uploadsDir = path.join(__dirname, '../../uploads');
+      const filePath = path.join(uploadsDir, deletedAsset.file_path);
+
+      try {
+        // Delete main file
+        if (fs.existsSync(filePath)) {
+          fs.unlinkSync(filePath);
+          logger.info(`Deleted media file: ${deletedAsset.file_path}`);
+        }
+
+        // Delete thumbnail if it exists
+        deleteThumbnail(deletedAsset.file_path);
+      } catch (fileError) {
+        // Log but don't fail - the soft delete already succeeded
+        logger.warn('Failed to delete media file from disk:', fileError);
       }
 
       res.status(204).send();

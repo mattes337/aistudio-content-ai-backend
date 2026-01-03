@@ -399,7 +399,27 @@ export class DatabaseService {
     return result.rows[0] || null;
   }
 
-  static async deleteMediaAsset(id: string): Promise<boolean> {
+  /**
+   * Soft deletes a media asset by setting file_status to 'deleted'.
+   * The actual file should be deleted separately by the controller.
+   * The database row is kept so the processor can sync the deletion to WordPress.
+   */
+  static async deleteMediaAsset(id: string): Promise<MediaAsset | null> {
+    const result = await pool.query(
+      `UPDATE media_assets
+       SET file_status = 'deleted', updated_at = NOW()
+       WHERE id = $1
+       RETURNING *`,
+      [id]
+    );
+    return result.rows[0] || null;
+  }
+
+  /**
+   * Permanently deletes a media asset from the database.
+   * Only call this after WordPress sync has cleaned up the remote media.
+   */
+  static async permanentlyDeleteMediaAsset(id: string): Promise<boolean> {
     const result = await pool.query('DELETE FROM media_assets WHERE id = $1', [id]);
     return (result.rowCount ?? 0) > 0;
   }
