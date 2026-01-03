@@ -45,18 +45,13 @@ function sanitizeForPostgres(value: string | null | undefined): string | null {
 export class DatabaseService {
   // Channel operations
   static async createChannel(channelData: CreateChannelRequest): Promise<Channel> {
-    // Combine credentials and data into a single JSON structure for storage
-    const combinedData = {
-      ...(channelData.credentials && { credentials: channelData.credentials }),
-      ...(channelData.data && { data: channelData.data })
-    };
-
+    // Store data directly - new schema uses flat structure with credentials, settings, metadata
     const query = `
       INSERT INTO channels (name, url, type, platform_api, data)
       VALUES ($1, $2, $3, $4, $5)
       RETURNING *
     `;
-    const jsonString = JSON.stringify(combinedData);
+    const jsonString = channelData.data ? JSON.stringify(channelData.data) : '{}';
     console.log('Creating channel with JSON data:', jsonString);
     const values = [
       channelData.name,
@@ -67,7 +62,30 @@ export class DatabaseService {
     ];
 
     const result = await pool.query(query, values);
-    return result.rows[0];
+    const row = result.rows[0];
+
+    // Parse the data field for the return value
+    return {
+      ...row,
+      data: this.parseChannelData(row.data)
+    };
+  }
+
+  /**
+   * Parse channel data from database (handles JSONB auto-parse and string JSON)
+   */
+  private static parseChannelData(data: any): any {
+    if (!data) return {};
+    if (typeof data === 'object') return data;
+    if (typeof data === 'string') {
+      try {
+        return JSON.parse(data);
+      } catch (error) {
+        console.warn('Invalid JSON data in channel, using empty object:', error);
+        return {};
+      }
+    }
+    return {};
   }
 
   static async getChannels(options: ChannelQueryOptions = {}): Promise<PaginatedChannels> {
@@ -146,30 +164,10 @@ export class DatabaseService {
    */
   static async getChannelsFull(): Promise<Channel[]> {
     const result = await pool.query('SELECT * FROM channels ORDER BY created_at DESC');
-    return result.rows.map(row => {
-      let parsedData: any = {};
-
-      // Handle potentially malformed JSON data or already-parsed JSONB
-      if (row.data) {
-        if (typeof row.data === 'object') {
-          // PostgreSQL JSONB columns are automatically parsed by pg driver
-          parsedData = row.data;
-        } else if (typeof row.data === 'string') {
-          try {
-            parsedData = JSON.parse(row.data);
-          } catch (error) {
-            console.warn(`Invalid JSON data for channel ${row.id}, using empty object. Data: "${row.data}"`, error);
-            parsedData = {};
-          }
-        }
-      }
-
-      return {
-        ...row,
-        credentials: parsedData.credentials,
-        data: parsedData.data
-      };
-    });
+    return result.rows.map(row => ({
+      ...row,
+      data: this.parseChannelData(row.data)
+    }));
   }
 
   static async getChannelById(id: string): Promise<Channel | null> {
@@ -177,26 +175,9 @@ export class DatabaseService {
     if (result.rows.length === 0) return null;
 
     const row = result.rows[0];
-    let parsedData: any = {};
-
-    // Handle potentially malformed JSON data or already-parsed JSONB
-    if (row.data) {
-      if (typeof row.data === 'object') {
-        parsedData = row.data;
-      } else if (typeof row.data === 'string') {
-        try {
-          parsedData = JSON.parse(row.data);
-        } catch (error) {
-          console.warn(`Invalid JSON data for channel ${id}, using empty object. Data: "${row.data}"`, error);
-          parsedData = {};
-        }
-      }
-    }
-
     return {
       ...row,
-      credentials: parsedData.credentials,
-      data: parsedData.data
+      data: this.parseChannelData(row.data)
     };
   }
 
@@ -210,24 +191,11 @@ export class DatabaseService {
   }
 
   static async updateChannel(channelData: UpdateChannelRequest): Promise<Channel | null> {
-    // First get the current channel raw data to check for malformed JSON
+    // First get the current channel to merge data
     const currentRawChannel = await this.getRawChannelById(channelData.id);
     if (!currentRawChannel) return null;
 
-    // Parse current data safely, handling already-parsed JSONB or malformed JSON
-    let currentParsedData: any = {};
-    if (currentRawChannel.data) {
-      if (typeof currentRawChannel.data === 'object') {
-        currentParsedData = currentRawChannel.data;
-      } else if (typeof currentRawChannel.data === 'string') {
-        try {
-          currentParsedData = JSON.parse(currentRawChannel.data);
-        } catch (error) {
-          console.warn(`Malformed JSON data found in database for channel ${channelData.id}, treating as empty object. Data: "${currentRawChannel.data}"`);
-          currentParsedData = {};
-        }
-      }
-    }
+    const currentData = this.parseChannelData(currentRawChannel.data);
 
     const setParts: string[] = [];
     const values: any[] = [];
@@ -250,28 +218,25 @@ export class DatabaseService {
       values.push(channelData.platform_api);
     }
 
-    // Handle credentials and data updates
-    if (channelData.credentials !== undefined || channelData.data !== undefined) {
-      const combinedData: any = {};
-
-      // Add existing credentials and data if they exist
-      if (currentParsedData.credentials) {
-        combinedData.credentials = currentParsedData.credentials;
-      }
-      if (currentParsedData.data) {
-        combinedData.data = currentParsedData.data;
-      }
-
-      // Add new credentials and data if they exist
-      if (channelData.credentials) {
-        combinedData.credentials = channelData.credentials;
-      }
-      if (channelData.data) {
-        combinedData.data = channelData.data;
-      }
+    // Handle data updates - merge with existing data
+    if (channelData.data !== undefined) {
+      const mergedData = {
+        ...currentData,
+        ...channelData.data,
+        // Deep merge for nested objects
+        credentials: channelData.data.credentials !== undefined
+          ? channelData.data.credentials
+          : currentData.credentials,
+        settings: channelData.data.settings !== undefined
+          ? channelData.data.settings
+          : currentData.settings,
+        metadata: channelData.data.metadata !== undefined
+          ? { ...currentData.metadata, ...channelData.data.metadata }
+          : currentData.metadata
+      };
 
       setParts.push(`data = $${paramCount++}`);
-      const jsonString = JSON.stringify(combinedData);
+      const jsonString = JSON.stringify(mergedData);
       console.log('Storing JSON data for channel:', channelData.id, jsonString);
       values.push(jsonString);
     }
@@ -292,26 +257,9 @@ export class DatabaseService {
     if (result.rows.length === 0) return null;
 
     const updatedRow = result.rows[0];
-    let parsedData: any = {};
-
-    // Handle potentially malformed JSON data or already-parsed JSONB
-    if (updatedRow.data) {
-      if (typeof updatedRow.data === 'object') {
-        parsedData = updatedRow.data;
-      } else if (typeof updatedRow.data === 'string') {
-        try {
-          parsedData = JSON.parse(updatedRow.data);
-        } catch (error) {
-          console.warn(`Invalid JSON data for updated channel ${channelData.id}, using empty object. Data: "${updatedRow.data}"`, error);
-          parsedData = {};
-        }
-      }
-    }
-
     return {
       ...updatedRow,
-      credentials: parsedData.credentials,
-      data: parsedData.data
+      data: this.parseChannelData(updatedRow.data)
     };
   }
 

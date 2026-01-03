@@ -32,6 +32,125 @@ const options = {
         }
       },
       schemas: {
+        // Channel Data sub-schemas
+        WordPressCredentials: {
+          type: 'object',
+          required: ['username', 'applicationPassword'],
+          properties: {
+            username: { type: 'string', description: 'WordPress username' },
+            applicationPassword: { type: 'string', description: 'WordPress Application Password' }
+          }
+        },
+        InstagramCredentials: {
+          type: 'object',
+          required: ['accessToken', 'userId'],
+          properties: {
+            accessToken: { type: 'string', description: 'Instagram Graph API access token' },
+            userId: { type: 'string', description: 'Instagram user ID' }
+          }
+        },
+        FacebookCredentials: {
+          type: 'object',
+          required: ['accessToken', 'pageId'],
+          properties: {
+            accessToken: { type: 'string', description: 'Facebook Graph API access token' },
+            pageId: { type: 'string', description: 'Facebook page ID' }
+          }
+        },
+        XCredentials: {
+          type: 'object',
+          required: ['apiKey', 'apiSecret', 'accessToken', 'accessTokenSecret'],
+          properties: {
+            apiKey: { type: 'string', description: 'X/Twitter API key' },
+            apiSecret: { type: 'string', description: 'X/Twitter API secret' },
+            accessToken: { type: 'string', description: 'X/Twitter access token' },
+            accessTokenSecret: { type: 'string', description: 'X/Twitter access token secret' },
+            bearerToken: { type: 'string', description: 'X/Twitter bearer token (optional)' }
+          }
+        },
+        EmailCredentials: {
+          type: 'object',
+          required: ['provider', 'fromEmail'],
+          properties: {
+            provider: { type: 'string', enum: ['smtp', 'sendgrid', 'ses', 'mailgun', 'postmark'], description: 'Email provider type' },
+            host: { type: 'string', description: 'SMTP host (required for smtp provider)' },
+            port: { type: 'integer', description: 'SMTP port (required for smtp provider)' },
+            username: { type: 'string', description: 'SMTP username (required for smtp provider)' },
+            password: { type: 'string', description: 'SMTP password (required for smtp provider)' },
+            apiKey: { type: 'string', description: 'API key (required for API-based providers)' },
+            fromEmail: { type: 'string', format: 'email', description: 'Sender email address' },
+            fromName: { type: 'string', description: 'Sender display name' }
+          }
+        },
+        WordPressProxySettings: {
+          type: 'object',
+          required: ['forwardedHost', 'forwardedProto'],
+          properties: {
+            forwardedHost: { type: 'string', description: 'Forwarded host header value' },
+            forwardedProto: { type: 'string', enum: ['http', 'https'], description: 'Forwarded protocol' }
+          }
+        },
+        WordPressSettings: {
+          type: 'object',
+          properties: {
+            defaultStatus: { type: 'string', enum: ['draft', 'pending', 'publish'], description: 'Default post status' },
+            defaultAuthor: { type: 'integer', description: 'Default WordPress author user ID' },
+            seoPlugin: { type: 'string', enum: ['auto', 'yoast', 'rankmath', 'aioseo', 'seopress', 'surerank', 'none'], description: 'SEO plugin to use' },
+            proxy: { $ref: '#/components/schemas/WordPressProxySettings' }
+          }
+        },
+        InstagramSettings: {
+          type: 'object',
+          properties: {
+            defaultHashtags: { type: 'array', items: { type: 'string' }, description: 'Default hashtags to include' },
+            locationId: { type: 'string', description: 'Default location ID' }
+          }
+        },
+        EmailSettings: {
+          type: 'object',
+          properties: {
+            replyTo: { type: 'string', format: 'email', description: 'Reply-to email address' },
+            template: { type: 'string', description: 'Default email template name' }
+          }
+        },
+        ChannelMetadata: {
+          type: 'object',
+          description: 'Content AI hints for content generation',
+          properties: {
+            description: { type: 'string', description: 'Channel description' },
+            language: { type: 'string', description: 'Content language (e.g., "de", "en")' },
+            brandTone: { type: 'string', description: 'Brand tone (e.g., "professional", "casual", "friendly")' },
+            targetAudience: { type: 'string', description: 'Target audience (e.g., "B2B executives", "young adults")' },
+            contentGuidelines: { type: 'string', description: 'Additional AI content generation instructions' }
+          }
+        },
+        ChannelData: {
+          type: 'object',
+          description: 'Channel configuration data containing credentials, settings, and metadata',
+          properties: {
+            credentials: {
+              type: 'object',
+              description: 'Platform-specific authentication credentials',
+              oneOf: [
+                { $ref: '#/components/schemas/WordPressCredentials' },
+                { $ref: '#/components/schemas/InstagramCredentials' },
+                { $ref: '#/components/schemas/FacebookCredentials' },
+                { $ref: '#/components/schemas/XCredentials' },
+                { $ref: '#/components/schemas/EmailCredentials' }
+              ]
+            },
+            settings: {
+              type: 'object',
+              description: 'Platform-specific settings and options',
+              oneOf: [
+                { $ref: '#/components/schemas/WordPressSettings' },
+                { $ref: '#/components/schemas/InstagramSettings' },
+                { $ref: '#/components/schemas/EmailSettings' }
+              ]
+            },
+            metadata: { $ref: '#/components/schemas/ChannelMetadata' }
+          }
+        },
         Channel: {
           type: 'object',
           properties: {
@@ -61,26 +180,8 @@ const options = {
               enum: ['none', 'wordpress', 'instagram_graph', 'facebook_graph', 'x_api', 'email_api'],
               description: 'Platform API type'
             },
-            credentials: {
-              type: 'object',
-              description: 'Platform API credentials - varies by channel type',
-              example: {
-                newsletter: {
-                  smtpHost: 'smtp.gmail.com',
-                  smtpPort: 587,
-                  smtpUser: 'noreply@example.com',
-                  smtpPassword: 'app-password',
-                  senderEmail: 'newsletter@example.com'
-                },
-                instagram: {
-                  accessToken: 'EAAJZC...access-token',
-                  userId: '17841412345678901'
-                }
-              }
-            },
             data: {
-              type: 'object',
-              description: 'Additional channel metadata'
+              $ref: '#/components/schemas/ChannelData'
             },
             created_at: {
               type: 'string',
@@ -92,6 +193,34 @@ const options = {
               format: 'date-time',
               description: 'Channel last update date'
             }
+          },
+          example: {
+            id: '123e4567-e89b-12d3-a456-426614174000',
+            name: 'Company Blog',
+            url: 'https://blog.example.com',
+            type: 'website',
+            platform_api: 'wordpress',
+            data: {
+              credentials: {
+                username: 'admin',
+                applicationPassword: 'ILxf rJe4 O81T lgtE 7jLN DxlA'
+              },
+              settings: {
+                defaultStatus: 'draft',
+                seoPlugin: 'auto',
+                proxy: {
+                  forwardedHost: 'wptest.drydev.de',
+                  forwardedProto: 'https'
+                }
+              },
+              metadata: {
+                language: 'de',
+                brandTone: 'professional',
+                targetAudience: 'Tech enthusiasts'
+              }
+            },
+            created_at: '2024-01-01T00:00:00Z',
+            updated_at: '2024-01-01T00:00:00Z'
           }
         },
         CreateChannelRequest: {
@@ -120,13 +249,30 @@ const options = {
               enum: ['none', 'wordpress', 'instagram_graph', 'facebook_graph', 'x_api', 'email_api'],
               description: 'Platform API type'
             },
-            credentials: {
-              type: 'object',
-              description: 'Platform API credentials'
-            },
-            metadata: {
-              type: 'object',
-              description: 'Additional channel metadata'
+            data: {
+              $ref: '#/components/schemas/ChannelData'
+            }
+          },
+          example: {
+            name: 'My Newsletter',
+            url: 'https://newsletter.example.com',
+            type: 'newsletter',
+            platform_api: 'email_api',
+            data: {
+              credentials: {
+                provider: 'sendgrid',
+                apiKey: 'SG.xxxxx',
+                fromEmail: 'newsletter@example.com',
+                fromName: 'My Newsletter'
+              },
+              settings: {
+                template: 'default',
+                replyTo: 'support@example.com'
+              },
+              metadata: {
+                brandTone: 'friendly',
+                targetAudience: 'Subscribers'
+              }
             }
           }
         },
@@ -155,13 +301,8 @@ const options = {
               enum: ['none', 'wordpress', 'instagram_graph', 'facebook_graph', 'x_api', 'email_api'],
               description: 'Platform API type'
             },
-            credentials: {
-              type: 'object',
-              description: 'Platform API credentials'
-            },
-            metadata: {
-              type: 'object',
-              description: 'Additional channel metadata'
+            data: {
+              $ref: '#/components/schemas/ChannelData'
             }
           }
         },

@@ -42,14 +42,7 @@ export class ChannelController {
 
   static async createChannel(req: Request, res: Response) {
     try {
-      // Handle metadata to data mapping for compatibility
-      const requestBody = { ...req.body };
-      if (requestBody.metadata && !requestBody.data) {
-        requestBody.data = requestBody.metadata;
-        delete requestBody.metadata;
-      }
-
-      const channelData: CreateChannelRequest = requestBody;
+      const channelData: CreateChannelRequest = req.body;
       const channel = await DatabaseService.createChannel(channelData);
       res.status(201).json(channel);
     } catch (error) {
@@ -61,15 +54,7 @@ export class ChannelController {
   static async updateChannel(req: Request, res: Response) {
     try {
       const { channelId } = req.params;
-
-      // Handle metadata to data mapping for compatibility
-      const requestBody = { ...req.body };
-      if (requestBody.metadata && !requestBody.data) {
-        requestBody.data = requestBody.metadata;
-        delete requestBody.metadata;
-      }
-
-      const channelData: UpdateChannelRequest = { id: channelId, ...requestBody };
+      const channelData: UpdateChannelRequest = { id: channelId, ...req.body };
       const channel = await DatabaseService.updateChannel(channelData);
 
       if (!channel) {

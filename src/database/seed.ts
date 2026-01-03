@@ -7,12 +7,15 @@ async function seedDatabase() {
     
     console.log('Seeding database with sample data...');
     
-    // Create sample channels
+    // Create sample channels with new schema structure
     await client.query(`
       INSERT INTO channels (name, url, type, platform_api, data) VALUES
-      ('Company Blog', 'https://company.com/blog', 'website', 'wordpress', '{"brandTone": "professional", "targetAudience": "tech professionals"}'),
-      ('Instagram', 'https://instagram.com/company', 'instagram', 'instagram_graph', '{"brandTone": "casual", "targetAudience": "general public"}'),
-      ('Facebook', 'https://facebook.com/company', 'facebook', 'facebook_graph', '{"brandTone": "friendly", "targetAudience": "business professionals"}')
+      ('Company Blog', 'https://company.com/blog', 'website', 'wordpress',
+        '{"settings": {"defaultStatus": "draft", "seoPlugin": "auto"}, "metadata": {"brandTone": "professional", "targetAudience": "tech professionals", "language": "en"}}'),
+      ('Instagram', 'https://instagram.com/company', 'instagram', 'instagram_graph',
+        '{"settings": {"defaultHashtags": ["tech", "innovation"]}, "metadata": {"brandTone": "casual", "targetAudience": "general public"}}'),
+      ('Facebook', 'https://facebook.com/company', 'facebook', 'facebook_graph',
+        '{"settings": {"defaultAudience": "public"}, "metadata": {"brandTone": "friendly", "targetAudience": "business professionals"}}')
       ON CONFLICT DO NOTHING
     `);
 

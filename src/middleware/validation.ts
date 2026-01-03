@@ -2,42 +2,137 @@ import { Request, Response, NextFunction } from 'express';
 import Joi from 'joi';
 import logger from '../utils/logger';
 
-// Define credential schemas for different channel types
-const websiteCredentialsSchema = Joi.object({
-  username: Joi.string().optional(),
-  password: Joi.string().optional(),
-  apiKey: Joi.string().optional()
+// =============================================================================
+// Credential Schemas (per platform)
+// =============================================================================
+
+// WordPress credentials (platform_api: 'wordpress')
+const wordpressCredentialsSchema = Joi.object({
+  username: Joi.string().required(),
+  applicationPassword: Joi.string().required()
 });
 
+// Instagram credentials (platform_api: 'instagram_graph')
 const instagramCredentialsSchema = Joi.object({
-  accessToken: Joi.string().optional(),
-  userId: Joi.string().optional(),
-  appId: Joi.string().optional(),
-  appSecret: Joi.string().optional()
+  accessToken: Joi.string().required(),
+  userId: Joi.string().required()
 });
 
+// Facebook credentials (platform_api: 'facebook_graph')
 const facebookCredentialsSchema = Joi.object({
-  accessToken: Joi.string().optional(),
-  pageId: Joi.string().optional(),
-  appId: Joi.string().optional(),
-  appSecret: Joi.string().optional()
+  accessToken: Joi.string().required(),
+  pageId: Joi.string().required()
 });
 
+// X/Twitter credentials (platform_api: 'x_api')
 const xCredentialsSchema = Joi.object({
-  apiKey: Joi.string().optional(),
-  apiSecret: Joi.string().optional(),
-  accessToken: Joi.string().optional(),
-  accessTokenSecret: Joi.string().optional(),
+  apiKey: Joi.string().required(),
+  apiSecret: Joi.string().required(),
+  accessToken: Joi.string().required(),
+  accessTokenSecret: Joi.string().required(),
   bearerToken: Joi.string().optional()
 });
 
-const newsletterCredentialsSchema = Joi.object({
-  smtpHost: Joi.string().optional(),
-  smtpPort: Joi.number().integer().min(1).max(65535).optional(),
-  smtpUser: Joi.string().optional(),
-  smtpPassword: Joi.string().optional(),
-  senderEmail: Joi.string().email().optional(),
-  apiKey: Joi.string().optional()
+// Email/Newsletter credentials (platform_api: 'email_api')
+const emailCredentialsSchema = Joi.object({
+  provider: Joi.string().valid('smtp', 'sendgrid', 'ses', 'mailgun', 'postmark').required(),
+  // SMTP provider fields
+  host: Joi.string().when('provider', { is: 'smtp', then: Joi.required(), otherwise: Joi.optional() }),
+  port: Joi.number().integer().min(1).max(65535).when('provider', { is: 'smtp', then: Joi.required(), otherwise: Joi.optional() }),
+  username: Joi.string().when('provider', { is: 'smtp', then: Joi.required(), otherwise: Joi.optional() }),
+  password: Joi.string().when('provider', { is: 'smtp', then: Joi.required(), otherwise: Joi.optional() }),
+  // API-based provider fields
+  apiKey: Joi.string().when('provider', { is: 'smtp', then: Joi.optional(), otherwise: Joi.required() }),
+  // Common fields
+  fromEmail: Joi.string().email().required(),
+  fromName: Joi.string().optional()
+});
+
+// =============================================================================
+// Settings Schemas (per platform)
+// =============================================================================
+
+// WordPress proxy settings
+const wordpressProxySettingsSchema = Joi.object({
+  forwardedHost: Joi.string().required(),
+  forwardedProto: Joi.string().valid('http', 'https').required()
+});
+
+// WordPress settings
+const wordpressSettingsSchema = Joi.object({
+  defaultStatus: Joi.string().valid('draft', 'pending', 'publish').optional(),
+  defaultAuthor: Joi.number().integer().optional(),
+  seoPlugin: Joi.string().valid('auto', 'yoast', 'rankmath', 'aioseo', 'seopress', 'surerank', 'none').optional(),
+  proxy: wordpressProxySettingsSchema.optional()
+});
+
+// Instagram settings
+const instagramSettingsSchema = Joi.object({
+  defaultHashtags: Joi.array().items(Joi.string()).optional(),
+  locationId: Joi.string().optional()
+});
+
+// Facebook settings
+const facebookSettingsSchema = Joi.object({
+  defaultAudience: Joi.string().valid('public', 'friends', 'only_me').optional()
+});
+
+// X/Twitter settings
+const xSettingsSchema = Joi.object({
+  defaultReplySettings: Joi.string().valid('everyone', 'following', 'mentionedUsers').optional()
+});
+
+// Email/Newsletter settings
+const emailSettingsSchema = Joi.object({
+  replyTo: Joi.string().email().optional(),
+  template: Joi.string().optional()
+});
+
+// =============================================================================
+// Channel Metadata Schema (AI hints)
+// =============================================================================
+
+const channelMetadataSchema = Joi.object({
+  description: Joi.string().optional(),
+  language: Joi.string().optional(),
+  brandTone: Joi.string().optional(),
+  targetAudience: Joi.string().optional(),
+  contentGuidelines: Joi.string().optional()
+});
+
+// =============================================================================
+// Channel Data Schema (combines credentials, settings, metadata)
+// =============================================================================
+
+// Helper to get credentials schema based on platform_api
+const getCredentialsSchema = (platformApi: string) => {
+  switch (platformApi) {
+    case 'wordpress': return wordpressCredentialsSchema;
+    case 'instagram_graph': return instagramCredentialsSchema;
+    case 'facebook_graph': return facebookCredentialsSchema;
+    case 'x_api': return xCredentialsSchema;
+    case 'email_api': return emailCredentialsSchema;
+    default: return Joi.object();
+  }
+};
+
+// Helper to get settings schema based on platform_api
+const getSettingsSchema = (platformApi: string) => {
+  switch (platformApi) {
+    case 'wordpress': return wordpressSettingsSchema;
+    case 'instagram_graph': return instagramSettingsSchema;
+    case 'facebook_graph': return facebookSettingsSchema;
+    case 'x_api': return xSettingsSchema;
+    case 'email_api': return emailSettingsSchema;
+    default: return Joi.object();
+  }
+};
+
+// Channel data schema with conditional validation
+const channelDataSchema = Joi.object({
+  credentials: Joi.object().optional(),
+  settings: Joi.object().optional(),
+  metadata: channelMetadataSchema.optional()
 });
 
 const channelSchema = Joi.object({
@@ -45,28 +140,7 @@ const channelSchema = Joi.object({
   url: Joi.string().uri().max(2048).required(),
   type: Joi.string().valid('website', 'instagram', 'facebook', 'x', 'newsletter').required(),
   platform_api: Joi.string().valid('none', 'wordpress', 'instagram_graph', 'facebook_graph', 'x_api', 'email_api').required(),
-  credentials: Joi.when('type', {
-    is: 'website',
-    then: websiteCredentialsSchema.optional(),
-    otherwise: Joi.when('type', {
-      is: 'instagram',
-      then: instagramCredentialsSchema.optional(),
-      otherwise: Joi.when('type', {
-        is: 'facebook',
-        then: facebookCredentialsSchema.optional(),
-        otherwise: Joi.when('type', {
-          is: 'x',
-          then: xCredentialsSchema.optional(),
-          otherwise: Joi.when('type', {
-            is: 'newsletter',
-            then: newsletterCredentialsSchema.optional(),
-            otherwise: Joi.object().optional()
-          })
-        })
-      })
-    })
-  }),
-  data: Joi.object().optional()
+  data: channelDataSchema.optional()
 });
 
 const mediaAssetSchema = Joi.object({
@@ -249,10 +323,20 @@ function validateAndLog(
     }
   }
 
-  // Custom validation: For newsletter channels, if credentials are provided, smtpHost is required
-  if (validatedData.type === 'newsletter' && validatedData.credentials && typeof validatedData.credentials === 'object') {
-    if (!validatedData.credentials.smtpHost) {
-      throw new Error('credentials.smtpHost is required when credentials are provided for newsletter channels');
+  // Custom validation: For email_api channels, validate credentials structure
+  if (validatedData.platform_api === 'email_api' && validatedData.data?.credentials) {
+    const creds = validatedData.data.credentials;
+    if (!creds.provider) {
+      throw new Error('data.credentials.provider is required for email_api channels');
+    }
+    if (!creds.fromEmail) {
+      throw new Error('data.credentials.fromEmail is required for email_api channels');
+    }
+    if (creds.provider === 'smtp' && !creds.host) {
+      throw new Error('data.credentials.host is required for SMTP provider');
+    }
+    if (creds.provider !== 'smtp' && !creds.apiKey) {
+      throw new Error('data.credentials.apiKey is required for API-based email providers');
     }
   }
 
@@ -320,7 +404,7 @@ export const validateKnowledgeAsk = validateBody(knowledgeAskSchema);
 export const validateInferMetadata = validateBody(inferMetadataSchema);
 
 // Lenient validation exports - logs unknown properties but accepts requests
-export const validateChannelLenient = validateBodyLenient(channelSchema, ['name', 'url', 'type', 'platform_api', 'credentials', 'data', 'metadata']);
+export const validateChannelLenient = validateBodyLenient(channelSchema, ['name', 'url', 'type', 'platform_api', 'data']);
 export const validateMediaAssetLenient = validateBodyLenient(mediaAssetSchema, ['title', 'type', 'file_path', 'data']);
 export const validateArticleLenient = validateBodyLenient(articleSchema, ['title', 'status', 'publish_date', 'channel_id', 'data']);
 export const validatePostLenient = validateBodyLenient(postSchema, ['status', 'publish_date', 'platform', 'linked_article_id', 'data']);
