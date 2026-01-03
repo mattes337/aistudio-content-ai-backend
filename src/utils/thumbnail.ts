@@ -4,7 +4,7 @@ import fs from 'fs';
 
 const uploadsDir = path.join(__dirname, '../../uploads');
 
-const THUMBNAIL_SIZE = 50;
+const THUMBNAIL_SIZE = 100;
 const SUPPORTED_IMAGE_EXTENSIONS = ['.jpg', '.jpeg', '.png', '.gif', '.webp'];
 
 /**
