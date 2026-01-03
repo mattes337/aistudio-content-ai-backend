@@ -403,6 +403,9 @@ router.get('/image/models', AIController.getImageModels);
  *                 enum: ['auto', 'low', 'medium', 'high']
  *                 default: 'auto'
  *                 description: Image quality level
+ *               systemPrompt:
+ *                 type: string
+ *                 description: System instructions for image generation (default - "Do not write text into the image")
  *     responses:
  *       200:
  *         description: Image generated successfully

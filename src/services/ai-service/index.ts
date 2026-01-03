@@ -259,6 +259,7 @@ export class AIService {
       aspectRatio?: string; // Legacy support
       model?: string;
       quality?: ImageQuality;
+      systemPrompt?: string;
     }
   ): Promise<ImageGenerationResult> {
     const workflow = getImageWorkflow();
@@ -269,6 +270,7 @@ export class AIService {
       bounds: options?.bounds ?? (options?.aspectRatio ? { aspectRatio: options.aspectRatio } : undefined),
       model: options?.model,
       quality: options?.quality,
+      systemPrompt: options?.systemPrompt,
     });
   }
 

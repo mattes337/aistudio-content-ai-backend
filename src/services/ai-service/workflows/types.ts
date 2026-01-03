@@ -166,6 +166,9 @@ export interface ImageBounds {
   aspectRatio?: string;
 }
 
+/** Default system prompt for image generation */
+export const DEFAULT_IMAGE_SYSTEM_PROMPT = 'Do not write text into the image';
+
 /** Input for image generation */
 export interface ImageGenerateInput {
   /** Text description of the image to generate */
@@ -178,6 +181,8 @@ export interface ImageGenerateInput {
   model?: string;
   /** Quality level for generation */
   quality?: ImageQuality;
+  /** System prompt / instructions for image generation */
+  systemPrompt?: string;
 }
 
 /** Input for image editing */

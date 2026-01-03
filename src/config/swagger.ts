@@ -121,7 +121,8 @@ const options = {
             language: { type: 'string', description: 'Content language (e.g., "de", "en")' },
             brandTone: { type: 'string', description: 'Brand tone (e.g., "professional", "casual", "friendly")' },
             targetAudience: { type: 'string', description: 'Target audience (e.g., "B2B executives", "young adults")' },
-            contentGuidelines: { type: 'string', description: 'Additional AI content generation instructions' }
+            contentGuidelines: { type: 'string', description: 'Additional AI content generation instructions' },
+            imagePrompt: { type: 'string', description: 'System prompt for image generation (e.g., "Do not write text into the image")' }
           }
         },
         ChannelData: {

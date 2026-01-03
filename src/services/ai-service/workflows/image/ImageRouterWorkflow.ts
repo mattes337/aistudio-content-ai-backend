@@ -7,6 +7,7 @@
 
 import type { ImageGenerationResult, ImageEditResult } from '../../types';
 import type { ImageWorkflow, ImageGenerateInput, ImageEditInput, ImageType, ImageBounds } from '../types';
+import { DEFAULT_IMAGE_SYSTEM_PROMPT } from '../types';
 import { withErrorHandling } from '../../errors';
 import logger from '../../../../utils/logger';
 import { loadEnvConfig } from '../../../../utils/env';
@@ -197,8 +198,9 @@ export class ImageRouterWorkflow implements ImageWorkflow {
   }
 
   async generate(input: ImageGenerateInput): Promise<ImageGenerationResult> {
-    const { prompt, imageType, bounds, model, quality } = input;
+    const { prompt, imageType, bounds, model, quality, systemPrompt } = input;
     const effectiveModel = model || this.defaultModel;
+    const effectiveSystemPrompt = systemPrompt ?? DEFAULT_IMAGE_SYSTEM_PROMPT;
 
     logger.info(
       `[ImageRouter] Generating image: model=${effectiveModel}, type=${imageType || 'default'}, ` +
@@ -206,7 +208,11 @@ export class ImageRouterWorkflow implements ImageWorkflow {
     );
 
     return withErrorHandling(async () => {
-      const enhancedPrompt = buildImagePrompt(prompt, imageType);
+      // Build the full prompt with system instructions
+      let enhancedPrompt = buildImagePrompt(prompt, imageType);
+      if (effectiveSystemPrompt) {
+        enhancedPrompt = `${effectiveSystemPrompt}. ${enhancedPrompt}`;
+      }
       const size = boundsToSize(bounds);
 
       const requestBody: Record<string, unknown> = {

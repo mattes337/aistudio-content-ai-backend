@@ -118,6 +118,7 @@ export interface ChannelMetadata {
   brandTone?: string;        // e.g., "professional", "casual", "friendly"
   targetAudience?: string;   // e.g., "B2B executives", "young adults"
   contentGuidelines?: string; // Additional AI instructions
+  imagePrompt?: string;      // System prompt for image generation (e.g., "Do not write text into the image")
 }
 
 // =============================================================================

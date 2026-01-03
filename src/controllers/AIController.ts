@@ -216,7 +216,7 @@ export class AIController {
    */
   static async generateImageNew(req: Request, res: Response) {
     try {
-      const { prompt, imageType, bounds, aspectRatio, model, quality } = req.body;
+      const { prompt, imageType, bounds, aspectRatio, model, quality, systemPrompt } = req.body;
       if (!prompt) {
         return res.status(400).json({ message: 'Prompt is required' });
       }
@@ -243,6 +243,7 @@ export class AIController {
         aspectRatio, // Legacy support
         model,
         quality,
+        systemPrompt,
       });
       res.json(result);
     } catch (error) {
