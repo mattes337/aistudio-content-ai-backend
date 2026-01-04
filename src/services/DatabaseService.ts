@@ -320,9 +320,13 @@ export class DatabaseService {
       values.push(type);
     }
 
+    // Filter by file_status: if explicitly provided use that, otherwise exclude 'deleted'
     if (file_status) {
       conditions.push(`file_status = $${paramCount++}`);
       values.push(file_status);
+    } else {
+      // By default, don't return deleted items
+      conditions.push(`file_status != 'deleted'`);
     }
 
     const whereClause = conditions.length > 0 ? `WHERE ${conditions.join(' AND ')}` : '';
@@ -682,6 +686,8 @@ export class DatabaseService {
     const dataQuery = `
       SELECT p.id, p.status, p.publish_date, p.platform, p.linked_article_id,
              p.preview_file_path, p.file_status, p.created_at, p.updated_at,
+             p.data->>'type' as post_type,
+             COALESCE(p.data->>'content', p.data->>'caption') as caption,
              a.title as linked_article_title
       FROM posts p
       LEFT JOIN articles a ON p.linked_article_id = a.id

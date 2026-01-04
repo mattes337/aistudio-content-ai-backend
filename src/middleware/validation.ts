@@ -158,12 +158,50 @@ const articleSchema = Joi.object({
   data: Joi.object().optional()
 });
 
+// Post data schemas for different post types
+const postOverlaySchema = Joi.object({
+  id: Joi.string().required(),
+  text: Joi.string().required(),
+  position: Joi.object({
+    x: Joi.number().required(),
+    y: Joi.number().required()
+  }).optional(),
+  style: Joi.object().optional()
+});
+
+const postSlideSchema = Joi.object({
+  id: Joi.string().required(),
+  imageUrl: Joi.string().required(),
+  description: Joi.string().allow('').optional(),
+  overlays: Joi.array().items(postOverlaySchema).optional()
+});
+
+const postDataSchema = Joi.object({
+  content: Joi.string().allow('').optional(),
+  type: Joi.string().valid('image', 'carousel').optional(),
+  slides: Joi.array().items(postSlideSchema).optional(),
+  // Legacy/additional fields
+  caption: Joi.string().allow('').optional(),
+  overlays: Joi.array().items(postOverlaySchema).optional(),
+  tags: Joi.array().items(Joi.string()).optional(),
+  location: Joi.string().optional(),
+  tagged_users: Joi.array().items(Joi.string()).optional(),
+  alt_text: Joi.string().optional(),
+  settings: Joi.object().optional(),
+  previewImage: Joi.object({
+    originalName: Joi.string().required(),
+    mimeType: Joi.string().required(),
+    size: Joi.number().required(),
+    thumbnailPath: Joi.string().optional()
+  }).optional()
+}).unknown(true); // Allow additional fields for flexibility
+
 const postSchema = Joi.object({
   status: Joi.string().valid('draft', 'approved', 'scheduled', 'published', 'deleted').optional(),
   publish_date: Joi.date().allow(null).optional(),
   platform: Joi.string().max(50).required(),
   linked_article_id: Joi.string().uuid().optional(),
-  data: Joi.object().optional()
+  data: postDataSchema.optional()
 });
 
 const knowledgeSourceSchema = Joi.object({

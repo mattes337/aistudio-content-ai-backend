@@ -1,12 +1,64 @@
 import type { PaginatedResponse } from '../utils/pagination';
 
+/**
+ * Supported post types - extensible for future types
+ */
+export type PostType = 'image' | 'carousel';
+
+/**
+ * Text overlay on a slide
+ */
+export interface PostOverlay {
+  id: string;
+  text: string;
+  position?: {
+    x: number;
+    y: number;
+  };
+  style?: Record<string, any>;
+}
+
+/**
+ * Individual slide in a carousel post
+ */
+export interface PostSlide {
+  id: string;
+  imageUrl: string;
+  description?: string;
+  overlays?: PostOverlay[];
+}
+
+/**
+ * Post data structure stored in the JSONB column
+ */
+export interface PostData {
+  content?: string;
+  type?: PostType;
+  slides?: PostSlide[];
+  // Legacy/additional fields
+  caption?: string;
+  overlays?: PostOverlay[];
+  tags?: string[];
+  location?: string;
+  tagged_users?: string[];
+  alt_text?: string;
+  settings?: Record<string, any>;
+  previewImage?: {
+    originalName: string;
+    mimeType: string;
+    size: number;
+    thumbnailPath?: string;
+  };
+  [key: string]: any;
+}
+
 export interface Post {
   id: string;
   status: PostStatus;
   publish_date?: Date;
   platform: string;
   linked_article_id?: string;
-  data: Record<string, any>;
+  data: PostData;
   preview_file_path?: string;
   file_status: FileStatus;
   created_at: Date;
@@ -25,6 +77,8 @@ export interface PostListItem {
   status: PostStatus;
   publish_date?: Date;
   platform: string;
+  post_type?: PostType;
+  caption?: string;
   linked_article_id?: string;
   linked_article_title?: string;
   preview_file_path?: string;
@@ -54,7 +108,7 @@ export interface CreatePostRequest {
   publish_date?: Date;
   platform: string;
   linked_article_id?: string;
-  data?: Record<string, any>;
+  data?: PostData;
   preview_file_path?: string;
   file_status?: FileStatus;
 }

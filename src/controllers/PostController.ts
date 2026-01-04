@@ -1,12 +1,31 @@
 import type { Request, Response } from 'express';
 import { DatabaseService } from '../services/DatabaseService';
-import type { CreatePostRequest, UpdatePostRequest, PostQueryOptions, PostStatus } from '../models/Post';
+import type { CreatePostRequest, UpdatePostRequest, PostQueryOptions, PostStatus, PostData } from '../models/Post';
 import logger from '../utils/logger';
 import { getFileUrl } from '../utils/fileUpload';
 import { createThumbnail, getThumbnailUrl } from '../utils/thumbnail';
 
 // UUID validation regex
 const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+/**
+ * Extract preview image path from post data based on type.
+ * For carousel posts, uses the first slide's imageUrl.
+ * For image posts, returns undefined (uses manually uploaded preview).
+ */
+function getPreviewFromPostData(data?: PostData): string | undefined {
+  if (!data) return undefined;
+
+  // For carousel posts, use the first slide's image as preview
+  if (data.type === 'carousel' && Array.isArray(data.slides) && data.slides.length > 0) {
+    const firstSlide = data.slides[0];
+    if (firstSlide && firstSlide.imageUrl) {
+      return firstSlide.imageUrl;
+    }
+  }
+
+  return undefined;
+}
 
 export class PostController {
   static async getPosts(req: Request, res: Response) {
@@ -70,6 +89,19 @@ export class PostController {
   static async createPost(req: Request, res: Response) {
     try {
       const postData: CreatePostRequest = req.body;
+
+      // For carousel posts, auto-set preview_file_path from first slide
+      const autoPreview = getPreviewFromPostData(postData.data);
+      if (autoPreview && !postData.preview_file_path) {
+        postData.preview_file_path = autoPreview;
+        // Generate thumbnail for the preview
+        try {
+          await createThumbnail(autoPreview);
+        } catch (thumbError) {
+          logger.warn('Failed to create thumbnail for carousel preview:', thumbError);
+        }
+      }
+
       const post = await DatabaseService.createPost(postData);
       res.status(201).json(post);
     } catch (error) {
@@ -87,12 +119,27 @@ export class PostController {
       }
 
       const postData: UpdatePostRequest = { id: postId, ...req.body };
+
+      // For carousel posts, auto-update preview_file_path from first slide
+      if (postData.data) {
+        const autoPreview = getPreviewFromPostData(postData.data);
+        if (autoPreview) {
+          postData.preview_file_path = autoPreview;
+          // Generate thumbnail for the preview
+          try {
+            await createThumbnail(autoPreview);
+          } catch (thumbError) {
+            logger.warn('Failed to create thumbnail for carousel preview:', thumbError);
+          }
+        }
+      }
+
       const post = await DatabaseService.updatePost(postData);
-      
+
       if (!post) {
         return res.status(404).json({ message: 'Post not found' });
       }
-      
+
       res.json(post);
     } catch (error) {
       logger.error('Error updating post:', error);
